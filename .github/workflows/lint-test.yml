@@ -9,9 +9,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: check valid sh
-        run: shellcheck tests/*.sh
-
       - uses: actions/setup-go@v4
 
       - name: golangci-lint

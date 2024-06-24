@@ -18,3 +18,8 @@ sequenceDiagram
     Alice->>Islandora Workbench: workbench.csv
     Islandora Workbench->>Drupal: entity CUD
 ```
+
+TODO
+- [ ] HTTP service to allow a Google Sheets Apps script to validate a spreadsheet
+- [ ] Validator service
+- [ ] CSV transform service
