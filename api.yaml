@@ -1,0 +1,471 @@
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: CSV Validation API
+paths:
+  /upload:
+    post:
+      summary: Upload CSV file
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema:
+              $ref: '#/components/schemas/IslandoraObject'
+      responses:
+        '200':
+          description: CSV file processed successfully
+components:
+  schemas:
+    IslandoraObject:
+      type: object
+      required:
+        - title
+        - field_model
+      properties:
+        nid:
+          type: integer
+          description: Node ID
+          x-oapi-codegen-extra-tags:
+            csv: node_id
+        vid:
+          type: integer
+          description: Version ID
+          x-oapi-codegen-extra-tags:
+            csv: "-"
+        uuid:
+          type: string
+          description: UUID
+          x-oapi-codegen-extra-tags:
+            csv: "-"
+        lang:
+          type: string
+          description: Language code
+          x-oapi-codegen-extra-tags:
+            csv: langcode
+        revision_timestamp:
+          type: string
+          description: Revision timestamp
+          x-oapi-codegen-extra-tags:
+            csv: "-"
+        revision_uid:
+          type: integer
+          description: Revision UID
+          x-oapi-codegen-extra-tags:
+            csv: "-"
+        revision_log:
+          type: string
+          description: Revision log
+          x-oapi-codegen-extra-tags:
+            csv: "-"
+        uid:
+          type: integer
+          description: UID
+          x-oapi-codegen-extra-tags:
+            csv: "-"
+        title:
+          type: string
+          description: Title
+          x-oapi-codegen-extra-tags:
+            csv: title
+        type:
+          type: string
+          description: Type
+          x-oapi-codegen-extra-tags:
+            csv: "-"
+        status:
+          type: boolean
+          description: Status (published)
+          x-oapi-codegen-extra-tags:
+            csv: published
+        created:
+          type: string
+          description: Creation timestamp
+          x-oapi-codegen-extra-tags:
+            csv: "-"
+        changed:
+          type: string
+          description: Change timestamp
+          x-oapi-codegen-extra-tags:
+            csv: "-"
+        field_abstract:
+          type: string
+          description: Abstract
+          x-oapi-codegen-extra-tags:
+            csv: field_abstract
+        field_access:
+          type: string
+          description: Access field
+          x-oapi-codegen-extra-tags:
+            csv: field_access
+        field_affiliated_institution:
+          type: integer
+          description: Affiliated institution
+          x-oapi-codegen-extra-tags:
+            csv: field_affiliated_institution
+        field_alt_title:
+          type: string
+          description: Alternate title
+          x-oapi-codegen-extra-tags:
+            csv: field_alt_title
+        field_classification:
+          type: string
+          description: Classification
+          x-oapi-codegen-extra-tags:
+            csv: field_classification
+        field_collection_hierarchy:
+          type: integer
+          description: Collection hierarchy
+          x-oapi-codegen-extra-tags:
+            csv: field_collection_hierarchy
+        field_coordinates:
+          type: string
+          description: Coordinates
+          x-oapi-codegen-extra-tags:
+            csv: field_coordinates
+        field_coordinates_text:
+          type: string
+          description: Coordinates text
+          x-oapi-codegen-extra-tags:
+            csv: field_coordinates_text
+        field_copyright_date:
+          type: string
+          description: Copyright date
+          x-oapi-codegen-extra-tags:
+            csv: field_copyright_date
+        field_creator_description:
+          type: string
+          description: Creator description
+          x-oapi-codegen-extra-tags:
+            csv: field_creator_description
+        field_creator_email:
+          type: string
+          format: email
+          description: Creator email
+          x-oapi-codegen-extra-tags:
+            csv: field_creator_email
+        field_creator_role:
+          type: integer
+          description: Creator role
+          x-oapi-codegen-extra-tags:
+            csv: field_creator_role
+        field_date_modified:
+          type: string
+          description: Date modified
+          x-oapi-codegen-extra-tags:
+            csv: field_date_modified
+        field_date_other:
+          type: string
+          description: Other date
+          x-oapi-codegen-extra-tags:
+            csv: field_date_other
+        field_date_season:
+          type: integer
+          description: Date season
+          x-oapi-codegen-extra-tags:
+            csv: field_date_season
+        field_date_valid:
+          type: string
+          description: Date valid
+          x-oapi-codegen-extra-tags:
+            csv: field_date_valid
+        field_degree_level:
+          type: integer
+          description: Degree level
+          x-oapi-codegen-extra-tags:
+            csv: field_degree_level
+        field_degree_name:
+          type: integer
+          description: Degree name
+          x-oapi-codegen-extra-tags:
+            csv: field_degree_name
+        field_department_name:
+          type: integer
+          description: Department name
+          x-oapi-codegen-extra-tags:
+            csv: field_department_name
+        field_description:
+          type: string
+          description: Description
+          x-oapi-codegen-extra-tags:
+            csv: field_description
+        field_digital_format:
+          type: integer
+          description: Digital format
+          x-oapi-codegen-extra-tags:
+            csv: field_digital_format
+        field_digital_origin:
+          type: integer
+          description: Digital origin
+          x-oapi-codegen-extra-tags:
+            csv: field_digital_origin
+        field_display_hints:
+          type: integer
+          description: Display hints
+          x-oapi-codegen-extra-tags:
+            csv: field_display_hints
+        field_edition:
+          type: string
+          description: Edition
+          x-oapi-codegen-extra-tags:
+            csv: field_edition
+        field_edtf_date:
+          type: string
+          description: EDTF date
+          x-oapi-codegen-extra-tags:
+            csv: field_edtf_date
+        field_edtf_date_captured:
+          type: string
+          description: EDTF date captured
+          x-oapi-codegen-extra-tags:
+            csv: field_edtf_date_captured
+        field_edtf_date_created:
+          type: string
+          description: EDTF date created
+          x-oapi-codegen-extra-tags:
+            csv: field_edtf_date_created
+        field_edtf_date_embargo:
+          type: string
+          description: EDTF date embargo
+          x-oapi-codegen-extra-tags:
+            csv: field_edtf_date_embargo
+        field_edtf_date_issued:
+          type: string
+          description: EDTF date issued
+          x-oapi-codegen-extra-tags:
+            csv: field_edtf_date_issued
+        field_extent:
+          type: string
+          description: Extent
+          x-oapi-codegen-extra-tags:
+            csv: field_extent
+        field_frequency:
+          type: integer
+          description: Frequency
+          x-oapi-codegen-extra-tags:
+            csv: field_frequency
+        field_full_title:
+          type: string
+          description: Full title
+          x-oapi-codegen-extra-tags:
+            csv: field_full_title
+        field_genre:
+          type: integer
+          description: Genre
+          x-oapi-codegen-extra-tags:
+            csv: field_genre
+        field_geographic_subject:
+          type: integer
+          description: Geographic subject
+          x-oapi-codegen-extra-tags:
+            csv: field_geographic_subject
+        field_hide_gscholar_metatags:
+          type: boolean
+          description: Hide Google Scholar metatags
+          x-oapi-codegen-extra-tags:
+            csv: field_hide_gscholar_metatags
+        field_hide_hocr:
+          type: boolean
+          description: Hide HOCR
+          x-oapi-codegen-extra-tags:
+            csv: field_hide_hocr
+        field_identifier:
+          type: string
+          description: Identifier
+          x-oapi-codegen-extra-tags:
+            csv: field_identifier
+        field_keywords:
+          type: integer
+          description: Keywords
+          x-oapi-codegen-extra-tags:
+            csv: field_keywords
+        field_language:
+          type: integer
+          description: Language
+          x-oapi-codegen-extra-tags:
+            csv: field_language
+        field_lcc_classification:
+          type: string
+          description: LCC classification
+          x-oapi-codegen-extra-tags:
+            csv: field_lcc_classification
+        field_lcsh_topic:
+          type: integer
+          description: LCSH topic
+          x-oapi-codegen-extra-tags:
+            csv: field_lcsh_topic
+        field_linked_agent:
+          type: string
+          description: Linked agent
+          x-oapi-codegen-extra-tags:
+            csv: field_linked_agent
+        field_local_restriction:
+          type: boolean
+          description: Local restriction
+          x-oapi-codegen-extra-tags:
+            csv: field_local_restriction
+        field_media_type:
+          type: integer
+          description: Media type
+          x-oapi-codegen-extra-tags:
+            csv: field_media_type
+        field_member_of:
+          type: integer
+          description: Member of
+          x-oapi-codegen-extra-tags:
+            csv: field_member_of
+        field_mode_of_issuance:
+          type: integer
+          description: Mode of issuance
+          x-oapi-codegen-extra-tags:
+            csv: field_mode_of_issuance
+        field_model:
+          type: integer
+          description: Model
+          x-oapi-codegen-extra-tags:
+            csv: field_model
+        field_note:
+          type: string
+          description: Note
+          x-oapi-codegen-extra-tags:
+            csv: field_note
+        field_original_title:
+          type: string
+          description: Original title
+          x-oapi-codegen-extra-tags:
+            csv: field_original_title
+        field_part_detail:
+          type: string
+          description: Part detail
+          x-oapi-codegen-extra-tags:
+            csv: field_part_detail
+        field_physical_description:
+          type: string
+          description: Physical description
+          x-oapi-codegen-extra-tags:
+            csv: field_physical_description
+        field_physical_form:
+          type: integer
+          description: Physical form
+          x-oapi-codegen-extra-tags:
+            csv: field_physical_form
+        field_physical_location:
+          type: integer
+          description: Physical location
+          x-oapi-codegen-extra-tags:
+            csv: field_physical_location
+        field_pid:
+          type: string
+          description: PID
+          x-oapi-codegen-extra-tags:
+            csv: field_pid
+        field_place_published:
+          type: string
+          description: Place published
+          x-oapi-codegen-extra-tags:
+            csv: field_place_published
+        field_place_published_country:
+          type: integer
+          description: Place published country
+          x-oapi-codegen-extra-tags:
+            csv: field_place_published_country
+        field_publisher:
+          type: string
+          description: Publisher
+          x-oapi-codegen-extra-tags:
+            csv: field_publisher
+        field_record_origin:
+          type: string
+          description: Record origin
+          x-oapi-codegen-extra-tags:
+            csv: field_record_origin
+        field_related_item:
+          type: string
+          description: Related item
+          x-oapi-codegen-extra-tags:
+            csv: field_related_item
+        field_relation:
+          type: string
+          description: Relation
+          x-oapi-codegen-extra-tags:
+            csv: field_relation
+        field_resource_type:
+          type: integer
+          description: Resource type
+          x-oapi-codegen-extra-tags:
+            csv: field_resource_type
+        field_rights:
+          type: string
+          description: Rights
+          x-oapi-codegen-extra-tags:
+            csv: field_rights
+        field_site_disposition:
+          type: integer
+          description: Site disposition
+          x-oapi-codegen-extra-tags:
+            csv: field_site_disposition
+        field_sort_by:
+          type: string
+          description: Sort by
+          x-oapi-codegen-extra-tags:
+            csv: field_sort_by
+        field_source:
+          type: string
+          description: Source
+          x-oapi-codegen-extra-tags:
+            csv: field_source
+        field_subject:
+          type: integer
+          description: Subject
+          x-oapi-codegen-extra-tags:
+            csv: field_subject
+        field_subject_general:
+          type: integer
+          description: Subject general
+          x-oapi-codegen-extra-tags:
+            csv: field_subject_general
+        field_subject_hierarchical_geo:
+          type: string
+          description: Subject hierarchical geo
+          x-oapi-codegen-extra-tags:
+            csv: field_subject_hierarchical_geo
+        field_subject_lcsh:
+          type: integer
+          description: LCSH subject
+          x-oapi-codegen-extra-tags:
+            csv: field_subject_lcsh
+        field_subjects_name:
+          type: integer
+          description: Subjects name
+          x-oapi-codegen-extra-tags:
+            csv: field_subjects_name
+        field_table_of_contents:
+          type: string
+          description: Table of contents
+          x-oapi-codegen-extra-tags:
+            csv: field_table_of_contents
+        field_temporal_subject:
+          type: integer
+          description: Temporal subject
+          x-oapi-codegen-extra-tags:
+            csv: field_temporal_subject
+        field_thumbnail:
+          type: integer
+          description: Thumbnail
+          x-oapi-codegen-extra-tags:
+            csv: field_thumbnail
+        field_title_part_name:
+          type: string
+          description: Title part name
+          x-oapi-codegen-extra-tags:
+            csv: field_title_part_name
+        field_viewer_override:
+          type: integer
+          description: Viewer override
+          x-oapi-codegen-extra-tags:
+            csv: field_viewer_override
+        field_weight:
+          type: integer
+          description: Weight
+          x-oapi-codegen-extra-tags:
+            csv: field_weight

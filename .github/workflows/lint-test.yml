@@ -25,6 +25,9 @@ jobs:
       - name: Test with the Go CLI
         run: go test -v ./...
 
+      - name: ensure generated code is up-to-date
+        run: go generate ./api && git diff
+
   build-push:
     needs: [lint-test]
     runs-on: ubuntu-latest
