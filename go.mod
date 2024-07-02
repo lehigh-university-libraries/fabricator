@@ -5,7 +5,10 @@ go 1.22.2
 require (
 	github.com/gocarina/gocsv v0.0.0-20240520201108-78e41c74b4b1
 	github.com/lehigh-university-libraries/go-islandora v0.0.0-20240627192749-f98027891894
+	github.com/oapi-codegen/runtime v1.1.1
 )
+
+require github.com/google/uuid v1.5.0 // indirect
 
 require (
 	github.com/getkin/kin-openapi v0.125.0 // indirect
