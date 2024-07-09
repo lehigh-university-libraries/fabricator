@@ -52,11 +52,24 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 					value := v.FieldByName(field.Name)
 					if value.IsValid() && value.CanSet() {
 						str := record[i]
+						if str == "" {
+							continue
+						}
 						column := getJSONFieldName(field.Tag.Get("csv"))
-						switch header {
+						switch column {
+						case "field_linked_agent.vid":
+							if str == "Corporate Body" {
+								str = "corporate_body"
+							} else if str == "Person" {
+								str = "person"
+							} else if str == "Family" {
+								str = "family"
+							} else {
+								return nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+							}
 						case "field_linked_agent.rel_type":
 							components := strings.Split(str, "|")
-							str = components[1]
+							str = components[0]
 						case "field_extent.attr0=page",
 							"field_extent.attr0=dimensions",
 							"field_extent.attr0=bytes",
@@ -77,12 +90,12 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 							"field_identifier.attr0=uri",
 							"field_identifier.attr0=call-number",
 							"field_identifier.attr0=report-number":
-							components := strings.Split(header, ".attr0=")
+							components := strings.Split(column, ".attr0=")
 							column = components[0]
 							str = fmt.Sprintf(`{"value":"%s","attr0":"%s"}`, str, components[1])
 						case "field_geographic_subject.vid=geographic_naf",
 							"field_geographic_subject.vid=geographic_local":
-							components := strings.Split(header, ".vid=")
+							components := strings.Split(column, ".vid=")
 							column = components[0]
 							str = fmt.Sprintf("%s:%s", components[1], str)
 							/*
@@ -91,7 +104,7 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 								case "field_linked_agent.vid",
 									"field_linked_agent.rel_type":
 							*/
-						case "File Path":
+						case "file":
 							str = strings.ReplaceAll(str, `\`, `/`)
 							str = strings.TrimLeft(str, "/")
 							if len(str) > 3 && str[0:3] != "mnt" {
@@ -100,9 +113,7 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 						}
 
 						str = strings.ReplaceAll(str, " ; ", "|")
-						if str != "" {
-							row[column] = append(row[column], str)
-						}
+						row[column] = append(row[column], str)
 					}
 				}
 			}
@@ -149,9 +160,23 @@ func main() {
 
 	// check any columns that have no values
 	includeColumns := map[string]bool{}
-	for _, row := range rows {
+	for k, row := range rows {
 		for _, header := range headers {
-			if !includeColumns[header] && len(row[header]) > 0 {
+			if header == "field_linked_agent.name" {
+				name := rows[k][header]
+				if len(name) == 0 {
+					continue
+				}
+				header = "field_linked_agent"
+				includeColumns[header] = true
+				vid := rows[k]["field_linked_agent.vid"]
+				rel := rows[k]["field_linked_agent.rel_type"]
+				rows[k][header] = []string{
+					fmt.Sprintf("%s:%s:%s", rel[0], vid[0], name[0]),
+				}
+			} else if header == "field_linked_agent.rel_type" || header == "field_linked_agent.vid" {
+				continue
+			} else if !includeColumns[header] && len(row[header]) > 0 {
 				includeColumns[header] = true
 			}
 		}
