@@ -108,7 +108,7 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 							str = strings.ReplaceAll(str, `\`, `/`)
 							str = strings.TrimLeft(str, "/")
 							if len(str) > 3 && str[0:3] != "mnt" {
-								str = fmt.Sprintf("/mnt/scans/%s", str)
+								str = fmt.Sprintf("/mnt/islandora_staging/%s", str)
 							}
 						}
 
