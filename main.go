@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"os"
 	"reflect"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/lehigh-university-libraries/go-islandora/workbench"
@@ -25,7 +27,7 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 		return nil, err
 	}
 	defer file.Close()
-
+	re := regexp.MustCompile(`^\d{3}$`)
 	reader := csv.NewReader(file)
 	headers, err := reader.Read()
 	if err != nil {
@@ -57,6 +59,55 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 						}
 						column := getJSONFieldName(field.Tag.Get("csv"))
 						switch column {
+						case "Add Coverpage (Y/N)", "Make Public (Y/N)":
+							switch str {
+							case "Yes":
+								str = "1"
+							case "No":
+								str = "0"
+							default:
+								return nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+							}
+						case "id", "parent_id":
+							if !re.MatchString(str) {
+								return nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+							}
+						case "field_weight":
+							_, err := strconv.Atoi(str)
+							if err != nil {
+								return nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+							}
+						case "field_subject_hierarchical_geo":
+							// TODO str = getHierarchicalGeo(str)
+						case "field_rights":
+							switch str {
+							case "IN COPYRIGHT":
+								str = "http://rightsstatements.org/vocab/InC/1.0/"
+							case "IN COPYRIGHT - EU ORPHAN WORK":
+								str = "http://rightsstatements.org/vocab/InC-OW-EU/1.0/"
+							case "IN COPYRIGHT - EDUCATIONAL USE PERMITTED":
+								str = "http://rightsstatements.org/vocab/InC-EDU/1.0/"
+							case "IN COPYRIGHT - NON-COMMERCIAL USE PERMITTED":
+								str = "http://rightsstatements.org/vocab/InC-NC/1.0/"
+							case "IN COPYRIGHT - RIGHTS-HOLDER(S) UNLOCATABLE OR UNIDENTIFIABLE":
+								str = "http://rightsstatements.org/vocab/InC-RUU/1.0/"
+							case "NO COPYRIGHT - CONTRACTUAL RESTRICTIONS":
+								str = "http://rightsstatements.org/vocab/NoC-CR/1.0/"
+							case "NO COPYRIGHT - NON-COMMERCIAL USE ONLY":
+								str = "http://rightsstatements.org/vocab/NoC-NC/1.0/"
+							case "NO COPYRIGHT - OTHER KNOWN LEGAL RESTRICTIONS":
+								str = "http://rightsstatements.org/vocab/NoC-OKLR/1.0/"
+							case "NO COPYRIGHT - UNITED STATES":
+								str = "http://rightsstatements.org/vocab/NoC-US/1.0/"
+							case "COPYRIGHT NOT EVALUATED":
+								str = "http://rightsstatements.org/vocab/CNE/1.0/"
+							case "COPYRIGHT UNDETERMINED":
+								str = "http://rightsstatements.org/vocab/UND/1.0/"
+							case "NO KNOWN COPYRIGHT":
+								str = "http://rightsstatements.org/vocab/NKC/1.0/"
+							default:
+								return nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+							}
 						case "field_linked_agent.vid":
 							if str == "Corporate Body" {
 								str = "corporate_body"
