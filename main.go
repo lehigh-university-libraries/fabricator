@@ -21,20 +21,21 @@ func getJSONFieldName(tag string) string {
 	return tag
 }
 
-func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
+func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer file.Close()
 	re := regexp.MustCompile(`^\d{3}$`)
 	reader := csv.NewReader(file)
 	headers, err := reader.Read()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var rows []map[string][]string
+	newHeaders := map[string]bool{}
 	newCsv := &workbench.SheetsCsv{}
 	for {
 		record, err := reader.Read()
@@ -57,28 +58,32 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 						if str == "" {
 							continue
 						}
+
 						column := getJSONFieldName(field.Tag.Get("csv"))
+						if column == "" {
+							return nil, nil, fmt.Errorf("unknown column: %s", jsonTag)
+						}
 						switch column {
-						case "Add Coverpage (Y/N)", "Make Public (Y/N)":
+						case "field_add_coverpage", "published":
 							switch str {
 							case "Yes":
 								str = "1"
 							case "No":
 								str = "0"
 							default:
-								return nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+								return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
 							}
 						case "id", "parent_id":
 							if !re.MatchString(str) {
-								return nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+								return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
 							}
 						case "field_weight":
 							_, err := strconv.Atoi(str)
 							if err != nil {
-								return nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+								return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
 							}
 						case "field_subject_hierarchical_geo":
-							// TODO str = getHierarchicalGeo(str)
+							str = `{"country":"United States","state":"Pennsylvania","county":"Lehigh","city":"Coplay"}`
 						case "field_rights":
 							switch str {
 							case "IN COPYRIGHT":
@@ -106,7 +111,7 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 							case "NO KNOWN COPYRIGHT":
 								str = "http://rightsstatements.org/vocab/NKC/1.0/"
 							default:
-								return nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+								return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
 							}
 						case "field_linked_agent.vid":
 							if str == "Corporate Body" {
@@ -116,7 +121,7 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 							} else if str == "Family" {
 								str = "family"
 							} else {
-								return nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+								return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
 							}
 						case "field_linked_agent.rel_type":
 							components := strings.Split(str, "|")
@@ -149,12 +154,8 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 							components := strings.Split(column, ".vid=")
 							column = components[0]
 							str = fmt.Sprintf("%s:%s", components[1], str)
-							/*
-								case "field_related_item.title":
-								case "field_related_item.identifier_type=issn":
-								case "field_linked_agent.vid",
-									"field_linked_agent.rel_type":
-							*/
+						// TODO case "field_related_item.title":
+						// TODO	case "field_related_item.identifier_type=issn":
 						case "file":
 							str = strings.ReplaceAll(str, `\`, `/`)
 							str = strings.TrimLeft(str, "/")
@@ -163,6 +164,9 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 							}
 						}
 
+						newHeaders[column] = true
+						// replace the locally defined google sheets cell delimiter
+						// with workbench's pipe delimiter
 						str = strings.ReplaceAll(str, " ; ", "|")
 						row[column] = append(row[column], str)
 					}
@@ -173,7 +177,7 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 		rows = append(rows, row)
 	}
 
-	return rows, nil
+	return newHeaders, rows, nil
 }
 
 func main() {
@@ -187,7 +191,7 @@ func main() {
 		flag.Usage()
 		return
 	}
-	rows, err := readCSVWithJSONTags(*source)
+	headers, rows, err := readCSVWithJSONTags(*source)
 	if err != nil {
 		slog.Error("Failed to read CSV", "err", err)
 		os.Exit(1)
@@ -203,46 +207,34 @@ func main() {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	// get all possible headers in the CSV
-	headers := []string{}
-	for header := range rows[0] {
-		headers = append(headers, header)
-	}
-
 	// check any columns that have no values
-	includeColumns := map[string]bool{}
-	for k, row := range rows {
-		for _, header := range headers {
+	for k := range rows {
+		for header := range headers {
 			if header == "field_linked_agent.name" {
+				delete(headers, header)
 				name := rows[k][header]
 				if len(name) == 0 {
 					continue
 				}
 				header = "field_linked_agent"
-				includeColumns[header] = true
+				headers[header] = true
 				vid := rows[k]["field_linked_agent.vid"]
 				rel := rows[k]["field_linked_agent.rel_type"]
 				rows[k][header] = []string{
 					fmt.Sprintf("%s:%s:%s", rel[0], vid[0], name[0]),
 				}
 			} else if header == "field_linked_agent.rel_type" || header == "field_linked_agent.vid" {
-				continue
-			} else if !includeColumns[header] && len(row[header]) > 0 {
-				includeColumns[header] = true
+				delete(headers, header)
 			}
 		}
 	}
-
-	// remove columns with no values from the header
-	headers = []string{}
-	for header, include := range includeColumns {
-		if include {
-			headers = append(headers, header)
-		}
+	firstRow := make([]string, 0, len(headers))
+	for header := range headers {
+		firstRow = append(firstRow, header)
 	}
 
 	// finally, write the header to the CSV
-	if err := writer.Write(headers); err != nil {
+	if err := writer.Write(firstRow); err != nil {
 		slog.Error("Failed to write record to CSV", "err", err)
 		os.Exit(1)
 	}
@@ -250,7 +242,7 @@ func main() {
 	// write the rows to the CSV
 	for _, row := range rows {
 		record := []string{}
-		for _, header := range headers {
+		for _, header := range firstRow {
 			record = append(record, strings.Join(row[header], "|"))
 		}
 		if err := writer.Write(record); err != nil {
@@ -260,4 +252,13 @@ func main() {
 	}
 
 	slog.Info("CSV file has been written successfully")
+}
+
+func StrInSlice(s string, sl []string) bool {
+	for _, a := range sl {
+		if a == s {
+			return true
+		}
+	}
+	return false
 }
