@@ -24,8 +24,9 @@ sequenceDiagram
 ## Getting started
 
 ```
-go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
-go generate ./api
+go run main.go \
+  --source /path/to/google/sheet.csv \
+  --target workbench.csv
 ```
 
 
