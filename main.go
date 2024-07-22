@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"reflect"
 	"strings"
@@ -114,7 +116,37 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 	return rows, nil
 }
 
+func checkMyWork(w http.ResponseWriter, r *http.Request) {
+	response := map[string]string{
+		"A2":  "Failed date format",
+		"C12": "File does not exist",
+	}
+	w.Header().Set("Content-Type", "application/json")
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, "Error creating JSON response", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(jsonResponse)
+}
+
 func main() {
+	var serverMode bool
+
+	flag.BoolVar(&serverMode, "server", false, "Set to true to run as server")
+	flag.Parse()
+
+	if serverMode {
+		// Start HTTP server
+		http.HandleFunc("/workbench/check", checkMyWork)
+
+		slog.Info("Starting server on :8080")
+		if err := http.ListenAndServe(":8080", nil); err != nil {
+			panic(err)
+		}
+	}
+
 	// Define the source and target flags
 	source := flag.String("source", "", "Path to the source CSV file")
 	target := flag.String("target", "", "Path to the target CSV file")
