@@ -124,11 +124,16 @@ func checkMyWork(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
+		slog.Error("Error creating JSON response", "err", err)
 		http.Error(w, "Error creating JSON response", http.StatusInternalServerError)
 		return
 	}
 
-	w.Write(jsonResponse)
+	_, err = w.Write(jsonResponse)
+	if err != nil {
+		slog.Error("Error writing JSON response", "err", err)
+		http.Error(w, "Error writing JSON response", http.StatusInternalServerError)
+	}
 }
 
 func main() {
