@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -104,12 +106,21 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 	}
 
 	header := csvData[0]
+	doiPattern := regexp.MustCompile(`^10.\d{4,9}/[-._;()/:A-Z0-9]+$`)
+	edtfPattern := regexp.MustCompile(`^(?:
+		\d{4}(-\d{2}(-\d{2})?)? |                    # YYYY, YYYY-MM, YYYY-MM-DD
+		\d{4}-(su|sp|fa|wi) |                       # Seasons YYYY-su, YYYY-sp, YYYY-fa, YYYY-wi
+		\d{4}-(\d{2}|\d{3}X|\d{2}X{2}|\d{1}X{3}) |  # Unspecified digit YYYY-XX, YYYY-XXX, YYYY-XXXX
+		\d{4}(\d{2}|\d{3}X|\d{2}X{2}|\d{1}X{3})? |  # Unspecified digit YYYYMM, YYYYMMXX, YYYYMMXXX
+		\d{4}(\d{2}|\d{3})-?\? |                    # Uncertain dates YYYY-MM?, YYYY-MM-DD?
+		\d{4}(\d{2}|\d{3})~?                        # Approximate dates YYYY-MM~, YYYY-MM-DD~
+	)$`)
 	errors := map[string]string{}
 	requiredFields := []string{
 		"Title",
 		"Object Model",
 	}
-	parentIds := map[string]bool{}
+	uploadIds := map[string]bool{}
 	for rowIndex, row := range csvData[1:] {
 		item := make(map[string]string, len(header))
 		for colIndex, cell := range row {
@@ -126,12 +137,40 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 			}
 
 			switch column {
+			// make sure these columns are integers
+			case "Parent Collection", "PPI":
+				_, err := strconv.Atoi(cell)
+				if err != nil {
+					errors[i] = "Must be an integer"
+				}
+				// make sure these columns are valid URLs
+			case "Catalog or ArchivesSpace URL":
+				parsedURL, err := url.ParseRequestURI(cell)
+				if err != nil || parsedURL.Scheme == "" && parsedURL.Host == "" {
+					errors[i] = "Invalid URL"
+				}
+			// make sure each upload ID is unique
 			case "Upload ID":
-				parentIds[cell] = true
+				if _, exists := uploadIds[cell]; exists {
+					errors[i] = "Duplicate upload ID"
+				}
+				uploadIds[cell] = true
+			// check for valid EDTF values
+			case "Creation Date", "Date Captured", "Embargo Until Date":
+				if !edtfPattern.MatchString(cell) {
+					errors[i] = "Invalid EDTF value"
+				}
+			// check for valid DOI value
+			case "DOI":
+				if !doiPattern.MatchString(cell) {
+					errors[i] = "Invalid DOI"
+				}
+			// make sure the parent ID matches an upload ID in the spreadsheet
 			case "Page/Item Parent ID":
-				if !parentIds[cell] {
+				if _, ok := uploadIds[cell]; !ok {
 					errors[i] = "Unknown parent ID"
 				}
+				// make sure the file exists in the filesystem
 			case "File Path":
 				filename := strings.ReplaceAll(cell, `\`, `/`)
 				filename = strings.TrimLeft(filename, "/")
@@ -143,6 +182,8 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 				if !fileExists(filename) {
 					errors[i] = "File does not exist in islandora_staging"
 				}
+			case "Subject Geographic (LCNAF)":
+				// TODO: check LCNAF API
 			}
 		}
 	}
