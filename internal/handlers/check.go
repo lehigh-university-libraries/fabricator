@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"io"
 	"log/slog"
 	"net/http"
 )
@@ -13,14 +12,34 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Error reading request body", http.StatusInternalServerError)
+	if r.ContentLength == 0 {
+		http.Error(w, "Request body is empty", http.StatusBadRequest)
 		return
 	}
+
 	defer r.Body.Close()
 
-	slog.Info("Payload", "payload", string(body))
+	var csvData [][]string
+	err := json.NewDecoder(r.Body).Decode(&csvData)
+	if err != nil {
+		http.Error(w, "Error parsing CSV", http.StatusBadRequest)
+		return
+	}
+
+	if len(csvData) < 2 {
+		http.Error(w, "No rows in CSV to process", http.StatusBadRequest)
+	}
+
+	header := csvData[0]
+
+	for rowIndex, row := range csvData[1:] {
+		item := make(map[string]string, len(header))
+		for colIndex, cell := range row {
+			column := header[colIndex]
+			item[column] = cell
+		}
+		slog.Info("Parsed row", "row", rowIndex, "values", item)
+	}
 
 	response := map[string]string{
 		"A2":  "Failed date format",
