@@ -22,17 +22,28 @@ function sendSheetData() {
     payload: payload
   };
 
+  var lastRow = sheet.getLastRow();
+  var lastColumn = sheet.getLastColumn();
+  var range = sheet.getRange(2, 1, lastRow - 1, lastColumn); // A2 to last cell
+  range.setBackground(null);
+  range.clearNote();
+
   var response = UrlFetchApp.fetch(url, options);
   var result = JSON.parse(response.getContentText());
 
   displayErrors(result);
 }
 
-function displayErrors(errors) {
+function displayErrors(e) {
+  if (e.length == 0) {
+    SpreadsheetApp.getUi().alert('Looks good! 🚀');
+    return;
+  }
+
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
 
-  for (var cell in errors) {
-    var error = errors[cell];
+  for (var cell in e) {
+    var error = e[cell];
     sheet.getRange(cell).setBackground('red').setNote(error);
   }
 
