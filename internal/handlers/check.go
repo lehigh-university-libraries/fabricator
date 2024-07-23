@@ -97,6 +97,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 	var csvData [][]string
 	err = json.NewDecoder(r.Body).Decode(&csvData)
 	if err != nil {
+		slog.Error("Error parsing CSV", "err", err)
 		http.Error(w, "Error parsing CSV", http.StatusBadRequest)
 		return
 	}
@@ -143,7 +144,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					errors[i] = "Must be an integer"
 				}
-				// make sure these columns are valid URLs
+			// make sure these columns are valid URLs
 			case "Catalog or ArchivesSpace URL":
 				parsedURL, err := url.ParseRequestURI(cell)
 				if err != nil || parsedURL.Scheme == "" && parsedURL.Host == "" {
@@ -170,7 +171,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 				if _, ok := uploadIds[cell]; !ok {
 					errors[i] = "Unknown parent ID"
 				}
-				// make sure the file exists in the filesystem
+			// make sure the file exists in the filesystem
 			case "File Path":
 				filename := strings.ReplaceAll(cell, `\`, `/`)
 				filename = strings.TrimLeft(filename, "/")
