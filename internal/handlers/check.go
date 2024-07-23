@@ -179,7 +179,11 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					if !fileExists(filename) {
 						errors[i] = "File does not exist in islandora_staging"
 					}
-				case "Subject Geographic (LCNAF)":
+				case "Add Coverpage (Y/N)", "Make Public (Y/N)":
+					if cell != "Yes" && cell != "No" {
+						errors[i] = "Invalid value. Must be Yes or No"
+					}
+				case "Hierarchical Geographic (Getty TGN)":
 					if !gettyTgnPattern.MatchString(cell) {
 						errors[i] = "Invalid Getty TGN URI"
 					}
