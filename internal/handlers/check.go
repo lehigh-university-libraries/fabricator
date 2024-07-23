@@ -116,7 +116,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 			column := header[colIndex]
 			item[column] = cell
 			c := numberToExcelColumn(colIndex)
-			i := c + strconv.Itoa(rowIndex)
+			i := c + strconv.Itoa(rowIndex+2)
 			if cell == "" {
 				if strInSlice(column, requiredFields) {
 					errors[i] = "Missing value"
@@ -145,6 +145,10 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+	}
+
+	if len(errors) > 0 {
+		slog.Info("Errors detected", "errors", errors)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
