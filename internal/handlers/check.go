@@ -110,6 +110,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 	header := csvData[0]
 	doiPattern := regexp.MustCompile(`^10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+$`)
 	gettyTgnPattern := regexp.MustCompile(`^http://vocab\.getty\.edu/page/tgn/\d+$`)
+	datePattern := regexp.MustCompile(`^\d{4}(-\d{2}(-\d{2})?)?$`)
 
 	errors := map[string]string{}
 	requiredFields := []string{
@@ -153,7 +154,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					uploadIds[cell] = true
 				// check for valid EDTF values
 				case "Creation Date", "Date Captured", "Embargo Until Date":
-					if !edtf.IsValid(cell) {
+					if !datePattern.MatchString(cell) && !edtf.IsValid(cell) {
 						errors[i] = "Invalid EDTF value"
 					}
 				// check for valid DOI value
@@ -193,21 +194,19 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					client := &http.Client{}
 					resp, err := client.Do(req)
 					if err != nil {
+						slog.Error("Unable to request hierarchy URL", "url", hierarchyURL, "err", err)
 						errors[i] = "Unable to request hierarchical information"
 						break
 					}
 					defer resp.Body.Close()
 
 					if resp.StatusCode != http.StatusOK {
+						slog.Error("Unable to get hierarchy URL", "url", hierarchyURL, "err", err)
 						errors[i] = "Unable to get hierarchical information"
 					}
 				}
 			}
 		}
-	}
-
-	if len(errors) > 0 {
-		slog.Info("Errors detected", "errors", errors)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
