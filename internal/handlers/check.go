@@ -109,6 +109,8 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 
 	header := csvData[0]
 	doiPattern := regexp.MustCompile(`^10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+$`)
+	gettyTgnPattern := regexp.MustCompile(`^http://vocab\.getty\.edu/page/tgn/\d+$`)
+
 	errors := map[string]string{}
 	requiredFields := []string{
 		"Title",
@@ -178,7 +180,28 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					errors[i] = "File does not exist in islandora_staging"
 				}
 			case "Subject Geographic (LCNAF)":
-				// TODO: check LCNAF API
+				if !gettyTgnPattern.MatchString(cell) {
+					errors[i] = "Invalid Getty TGN URI"
+				}
+				hierarchyURL := strings.Replace(cell, "page", "hierarchy", 1)
+
+				req, err := http.NewRequest("GET", hierarchyURL, nil)
+				if err != nil {
+					break
+				}
+				req.Header.Set("Accept", "application/json")
+
+				client := &http.Client{}
+				resp, err := client.Do(req)
+				if err != nil {
+					errors[i] = "Unable to request hierarchical information"
+					break
+				}
+				defer resp.Body.Close()
+
+				if resp.StatusCode != http.StatusOK {
+					errors[i] = "Unable to get hierarchical information"
+				}
 			}
 		}
 	}
