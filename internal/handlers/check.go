@@ -153,8 +153,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					uploadIds[cell] = true
 				// check for valid EDTF values
 				case "Creation Date", "Date Captured", "Embargo Until Date":
-					_, err := edtf.ParseString(cell)
-					if err != nil {
+					if !edtf.IsValid(cell) {
 						errors[i] = "Invalid EDTF value"
 					}
 				// check for valid DOI value
