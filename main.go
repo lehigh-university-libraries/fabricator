@@ -5,10 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"reflect"
 	"strings"
 
+	"github.com/lehigh-university-libraries/fabricator/internal/handlers"
 	"github.com/lehigh-university-libraries/go-islandora/workbench"
 )
 
@@ -95,7 +97,7 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 							str = strings.ReplaceAll(str, `\`, `/`)
 							str = strings.TrimLeft(str, "/")
 							if len(str) > 3 && str[0:3] != "mnt" {
-								str = fmt.Sprintf("/mnt/scans/%s", str)
+								str = fmt.Sprintf("/mnt/islandora_staging/%s", str)
 							}
 						}
 
@@ -115,6 +117,21 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 }
 
 func main() {
+	var serverMode bool
+
+	flag.BoolVar(&serverMode, "server", false, "Set to true to run as server")
+	flag.Parse()
+
+	if serverMode {
+		// Start HTTP server
+		http.HandleFunc("/workbench/check", handlers.CheckMyWork)
+
+		slog.Info("Starting server on :8080")
+		if err := http.ListenAndServe(":8080", nil); err != nil {
+			panic(err)
+		}
+	}
+
 	// Define the source and target flags
 	source := flag.String("source", "", "Path to the source CSV file")
 	target := flag.String("target", "", "Path to the target CSV file")
