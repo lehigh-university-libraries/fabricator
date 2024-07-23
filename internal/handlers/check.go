@@ -14,6 +14,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/lestrrat-go/jwx/jwk"
+	edtf "github.com/sfomuseum/go-edtf/parser"
 )
 
 const googleCertsURL = "https://www.googleapis.com/oauth2/v3/certs"
@@ -107,15 +108,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 	}
 
 	header := csvData[0]
-	doiPattern := regexp.MustCompile(`^10.\d{4,9}/[-._;()/:A-Z0-9]+$`)
-	edtfPattern := regexp.MustCompile(`^(?:
-		\d{4}(-\d{2}(-\d{2})?)? |                    # YYYY, YYYY-MM, YYYY-MM-DD
-		\d{4}-(su|sp|fa|wi) |                       # Seasons YYYY-su, YYYY-sp, YYYY-fa, YYYY-wi
-		\d{4}-(\d{2}|\d{3}X|\d{2}X{2}|\d{1}X{3}) |  # Unspecified digit YYYY-XX, YYYY-XXX, YYYY-XXXX
-		\d{4}(\d{2}|\d{3}X|\d{2}X{2}|\d{1}X{3})? |  # Unspecified digit YYYYMM, YYYYMMXX, YYYYMMXXX
-		\d{4}(\d{2}|\d{3})-?\? |                    # Uncertain dates YYYY-MM?, YYYY-MM-DD?
-		\d{4}(\d{2}|\d{3})~?                        # Approximate dates YYYY-MM~, YYYY-MM-DD~
-	)$`)
+	doiPattern := regexp.MustCompile(`^10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+$`)
 	errors := map[string]string{}
 	requiredFields := []string{
 		"Title",
@@ -158,7 +151,8 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 				uploadIds[cell] = true
 			// check for valid EDTF values
 			case "Creation Date", "Date Captured", "Embargo Until Date":
-				if !edtfPattern.MatchString(cell) {
+				_, err := edtf.ParseString(cell)
+				if err != nil {
 					errors[i] = "Invalid EDTF value"
 				}
 			// check for valid DOI value

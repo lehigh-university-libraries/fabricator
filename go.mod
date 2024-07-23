@@ -6,6 +6,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/lehigh-university-libraries/go-islandora v0.0.0-20240709193244-50f8e60d633d
 	github.com/lestrrat-go/jwx v1.2.29
+	github.com/sfomuseum/go-edtf v1.1.1
 )
 
 require (
