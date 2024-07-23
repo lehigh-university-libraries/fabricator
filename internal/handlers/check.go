@@ -118,13 +118,11 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 	}
 	uploadIds := map[string]bool{}
 	for rowIndex, row := range csvData[1:] {
-		item := make(map[string]string, len(header))
-		for colIndex, cell := range row {
+		for colIndex, col := range row {
 			column := header[colIndex]
-			item[column] = cell
 			c := numberToExcelColumn(colIndex)
 			i := c + strconv.Itoa(rowIndex+2)
-			if cell == "" {
+			if col == "" {
 				if strInSlice(column, requiredFields) {
 					errors[i] = "Missing value"
 				}
@@ -132,75 +130,78 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			switch column {
-			// make sure these columns are integers
-			case "Parent Collection", "PPI":
-				_, err := strconv.Atoi(cell)
-				if err != nil {
-					errors[i] = "Must be an integer"
-				}
-			// make sure these columns are valid URLs
-			case "Catalog or ArchivesSpace URL":
-				parsedURL, err := url.ParseRequestURI(cell)
-				if err != nil || parsedURL.Scheme == "" && parsedURL.Host == "" {
-					errors[i] = "Invalid URL"
-				}
-			// make sure each upload ID is unique
-			case "Upload ID":
-				if _, exists := uploadIds[cell]; exists {
-					errors[i] = "Duplicate upload ID"
-				}
-				uploadIds[cell] = true
-			// check for valid EDTF values
-			case "Creation Date", "Date Captured", "Embargo Until Date":
-				_, err := edtf.ParseString(cell)
-				if err != nil {
-					errors[i] = "Invalid EDTF value"
-				}
-			// check for valid DOI value
-			case "DOI":
-				if !doiPattern.MatchString(cell) {
-					errors[i] = "Invalid DOI"
-				}
-			// make sure the parent ID matches an upload ID in the spreadsheet
-			case "Page/Item Parent ID":
-				if _, ok := uploadIds[cell]; !ok {
-					errors[i] = "Unknown parent ID"
-				}
-			// make sure the file exists in the filesystem
-			case "File Path":
-				filename := strings.ReplaceAll(cell, `\`, `/`)
-				filename = strings.TrimLeft(filename, "/")
-				if len(filename) > 3 && filename[0:3] != "mnt" {
-					filename = fmt.Sprintf("/mnt/islandora_staging/%s", filename)
-				}
+			for _, cell := range strings.Split(col, " ; ") {
 
-				filename = strings.ReplaceAll(filename, "/mnt/islandora_staging", "/data")
-				if !fileExists(filename) {
-					errors[i] = "File does not exist in islandora_staging"
-				}
-			case "Subject Geographic (LCNAF)":
-				if !gettyTgnPattern.MatchString(cell) {
-					errors[i] = "Invalid Getty TGN URI"
-				}
-				hierarchyURL := strings.Replace(cell, "page", "hierarchy", 1)
+				switch column {
+				// make sure these columns are integers
+				case "Parent Collection", "PPI":
+					_, err := strconv.Atoi(cell)
+					if err != nil {
+						errors[i] = "Must be an integer"
+					}
+				// make sure these columns are valid URLs
+				case "Catalog or ArchivesSpace URL":
+					parsedURL, err := url.ParseRequestURI(cell)
+					if err != nil || parsedURL.Scheme == "" && parsedURL.Host == "" {
+						errors[i] = "Invalid URL"
+					}
+				// make sure each upload ID is unique
+				case "Upload ID":
+					if _, exists := uploadIds[cell]; exists {
+						errors[i] = "Duplicate upload ID"
+					}
+					uploadIds[cell] = true
+				// check for valid EDTF values
+				case "Creation Date", "Date Captured", "Embargo Until Date":
+					_, err := edtf.ParseString(cell)
+					if err != nil {
+						errors[i] = "Invalid EDTF value"
+					}
+				// check for valid DOI value
+				case "DOI":
+					if !doiPattern.MatchString(cell) {
+						errors[i] = "Invalid DOI"
+					}
+				// make sure the parent ID matches an upload ID in the spreadsheet
+				case "Page/Item Parent ID":
+					if _, ok := uploadIds[cell]; !ok {
+						errors[i] = "Unknown parent ID"
+					}
+				// make sure the file exists in the filesystem
+				case "File Path":
+					filename := strings.ReplaceAll(cell, `\`, `/`)
+					filename = strings.TrimLeft(filename, "/")
+					if len(filename) > 3 && filename[0:3] != "mnt" {
+						filename = fmt.Sprintf("/mnt/islandora_staging/%s", filename)
+					}
 
-				req, err := http.NewRequest("GET", hierarchyURL, nil)
-				if err != nil {
-					break
-				}
-				req.Header.Set("Accept", "application/json")
+					filename = strings.ReplaceAll(filename, "/mnt/islandora_staging", "/data")
+					if !fileExists(filename) {
+						errors[i] = "File does not exist in islandora_staging"
+					}
+				case "Subject Geographic (LCNAF)":
+					if !gettyTgnPattern.MatchString(cell) {
+						errors[i] = "Invalid Getty TGN URI"
+					}
+					hierarchyURL := strings.Replace(cell, "page", "hierarchy", 1)
 
-				client := &http.Client{}
-				resp, err := client.Do(req)
-				if err != nil {
-					errors[i] = "Unable to request hierarchical information"
-					break
-				}
-				defer resp.Body.Close()
+					req, err := http.NewRequest("GET", hierarchyURL, nil)
+					if err != nil {
+						break
+					}
+					req.Header.Set("Accept", "application/json")
 
-				if resp.StatusCode != http.StatusOK {
-					errors[i] = "Unable to get hierarchical information"
+					client := &http.Client{}
+					resp, err := client.Do(req)
+					if err != nil {
+						errors[i] = "Unable to request hierarchical information"
+						break
+					}
+					defer resp.Body.Close()
+
+					if resp.StatusCode != http.StatusOK {
+						errors[i] = "Unable to get hierarchical information"
+					}
 				}
 			}
 		}
