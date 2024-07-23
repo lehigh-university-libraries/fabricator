@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/csv"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -11,6 +10,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/lehigh-university-libraries/fabricator/internal/handlers"
 	"github.com/lehigh-university-libraries/go-islandora/workbench"
 )
 
@@ -116,26 +116,6 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 	return rows, nil
 }
 
-func checkMyWork(w http.ResponseWriter, r *http.Request) {
-	response := map[string]string{
-		"A2":  "Failed date format",
-		"C12": "File does not exist",
-	}
-	w.Header().Set("Content-Type", "application/json")
-	jsonResponse, err := json.Marshal(response)
-	if err != nil {
-		slog.Error("Error creating JSON response", "err", err)
-		http.Error(w, "Error creating JSON response", http.StatusInternalServerError)
-		return
-	}
-
-	_, err = w.Write(jsonResponse)
-	if err != nil {
-		slog.Error("Error writing JSON response", "err", err)
-		http.Error(w, "Error writing JSON response", http.StatusInternalServerError)
-	}
-}
-
 func main() {
 	var serverMode bool
 
@@ -144,7 +124,7 @@ func main() {
 
 	if serverMode {
 		// Start HTTP server
-		http.HandleFunc("/workbench/check", checkMyWork)
+		http.HandleFunc("/workbench/check", handlers.CheckMyWork)
 
 		slog.Info("Starting server on :8080")
 		if err := http.ListenAndServe(":8080", nil); err != nil {
