@@ -1,10 +1,19 @@
 function onEdit(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var activeCell = ss.getActiveCell();
-  if (activeCell.getColumn() != 14 || ss.getActiveSheet().getName() != "Sheet1") {
+  var sheet = ss.getActiveSheet();
+  if (sheet.getName() != "Sheet1") {
     return;
   }
 
+  var activeCell = ss.getActiveCell();
+  var columnNames = ["Related Department", "Language"];
+  var columnName = sheet.getRange(1, activeCell.getColumn()).getValue();
+  var pattern = /^Contributor Relator \d+$/;
+  if (!columnNames.includes(columnName) && !pattern.test(columnName)) {
+    return;
+  }
+
+  var delimiter = ' ; ';
   var newValue = e.value;
   var oldValue = e.oldValue;
   if (!newValue) {
@@ -14,7 +23,7 @@ function onEdit(e) {
     if (!oldValue) {
       activeCell.setValue(newValue);
     } else {
-      activeCell.setValue(oldValue + ' ; ' + newValue);
+      activeCell.setValue(oldValue + delimiter + newValue);
     }
   }
 }
