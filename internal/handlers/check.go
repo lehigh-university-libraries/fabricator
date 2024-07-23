@@ -132,6 +132,10 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 			}
 
 			for _, cell := range strings.Split(col, " ; ") {
+				cell = strings.TrimSpace(cell)
+				if cell == "" {
+					continue
+				}
 
 				switch column {
 				// make sure these columns are integers
@@ -156,6 +160,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 				case "Creation Date", "Date Captured", "Embargo Until Date":
 					if !datePattern.MatchString(cell) && !edtf.IsValid(cell) {
 						errors[i] = "Invalid EDTF value"
+						slog.Error("Invalid EDTF value", "cell", cell)
 					}
 				// check for valid DOI value
 				case "DOI":
