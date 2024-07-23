@@ -8,9 +8,12 @@ function onOpen() {
 function sendSheetData() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var data = sheet.getDataRange().getValues();
-
+  for (var i = 0; i < data.length; i++) {
+    for (var j = 0; j < data[i].length; j++) {
+      data[i][j] = data[i][j].toString();
+    }
+  }
   var payload = JSON.stringify(data);
-
   var url = 'https://preserve.lehigh.edu/workbench/check';
   const oauthToken = ScriptApp.getIdentityToken();
   var options = {
