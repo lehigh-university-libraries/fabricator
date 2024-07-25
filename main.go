@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/lehigh-university-libraries/fabricator/internal/handlers"
@@ -21,20 +23,21 @@ func getJSONFieldName(tag string) string {
 	return tag
 }
 
-func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
+func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer file.Close()
-
+	re := regexp.MustCompile(`^\d{3}$`)
 	reader := csv.NewReader(file)
 	headers, err := reader.Read()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var rows []map[string][]string
+	newHeaders := map[string]bool{}
 	newCsv := &workbench.SheetsCsv{}
 	for {
 		record, err := reader.Read()
@@ -54,11 +57,77 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 					value := v.FieldByName(field.Name)
 					if value.IsValid() && value.CanSet() {
 						str := record[i]
+						if str == "" {
+							continue
+						}
+
 						column := getJSONFieldName(field.Tag.Get("csv"))
-						switch header {
+						if column == "" {
+							return nil, nil, fmt.Errorf("unknown column: %s", jsonTag)
+						}
+						switch column {
+						case "field_add_coverpage", "published":
+							switch str {
+							case "Yes":
+								str = "1"
+							case "No":
+								str = "0"
+							default:
+								return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+							}
+						case "id", "parent_id":
+							if !re.MatchString(str) {
+								return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+							}
+						case "field_weight":
+							_, err := strconv.Atoi(str)
+							if err != nil {
+								return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+							}
+						case "field_subject_hierarchical_geo":
+							str = `{"country":"United States","state":"Pennsylvania","county":"Lehigh","city":"Coplay"}`
+						case "field_rights":
+							switch str {
+							case "IN COPYRIGHT":
+								str = "http://rightsstatements.org/vocab/InC/1.0/"
+							case "IN COPYRIGHT - EU ORPHAN WORK":
+								str = "http://rightsstatements.org/vocab/InC-OW-EU/1.0/"
+							case "IN COPYRIGHT - EDUCATIONAL USE PERMITTED":
+								str = "http://rightsstatements.org/vocab/InC-EDU/1.0/"
+							case "IN COPYRIGHT - NON-COMMERCIAL USE PERMITTED":
+								str = "http://rightsstatements.org/vocab/InC-NC/1.0/"
+							case "IN COPYRIGHT - RIGHTS-HOLDER(S) UNLOCATABLE OR UNIDENTIFIABLE":
+								str = "http://rightsstatements.org/vocab/InC-RUU/1.0/"
+							case "NO COPYRIGHT - CONTRACTUAL RESTRICTIONS":
+								str = "http://rightsstatements.org/vocab/NoC-CR/1.0/"
+							case "NO COPYRIGHT - NON-COMMERCIAL USE ONLY":
+								str = "http://rightsstatements.org/vocab/NoC-NC/1.0/"
+							case "NO COPYRIGHT - OTHER KNOWN LEGAL RESTRICTIONS":
+								str = "http://rightsstatements.org/vocab/NoC-OKLR/1.0/"
+							case "NO COPYRIGHT - UNITED STATES":
+								str = "http://rightsstatements.org/vocab/NoC-US/1.0/"
+							case "COPYRIGHT NOT EVALUATED":
+								str = "http://rightsstatements.org/vocab/CNE/1.0/"
+							case "COPYRIGHT UNDETERMINED":
+								str = "http://rightsstatements.org/vocab/UND/1.0/"
+							case "NO KNOWN COPYRIGHT":
+								str = "http://rightsstatements.org/vocab/NKC/1.0/"
+							default:
+								return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+							}
+						case "field_linked_agent.vid":
+							if str == "Corporate Body" {
+								str = "corporate_body"
+							} else if str == "Person" {
+								str = "person"
+							} else if str == "Family" {
+								str = "family"
+							} else {
+								return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+							}
 						case "field_linked_agent.rel_type":
 							components := strings.Split(str, "|")
-							str = components[1]
+							str = components[0]
 						case "field_extent.attr0=page",
 							"field_extent.attr0=dimensions",
 							"field_extent.attr0=bytes",
@@ -79,21 +148,17 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 							"field_identifier.attr0=uri",
 							"field_identifier.attr0=call-number",
 							"field_identifier.attr0=report-number":
-							components := strings.Split(header, ".attr0=")
+							components := strings.Split(column, ".attr0=")
 							column = components[0]
 							str = fmt.Sprintf(`{"value":"%s","attr0":"%s"}`, str, components[1])
 						case "field_geographic_subject.vid=geographic_naf",
 							"field_geographic_subject.vid=geographic_local":
-							components := strings.Split(header, ".vid=")
+							components := strings.Split(column, ".vid=")
 							column = components[0]
 							str = fmt.Sprintf("%s:%s", components[1], str)
-							/*
-								case "field_related_item.title":
-								case "field_related_item.identifier_type=issn":
-								case "field_linked_agent.vid",
-									"field_linked_agent.rel_type":
-							*/
-						case "File Path":
+						// TODO case "field_related_item.title":
+						// TODO	case "field_related_item.identifier_type=issn":
+						case "file":
 							str = strings.ReplaceAll(str, `\`, `/`)
 							str = strings.TrimLeft(str, "/")
 							if len(str) > 3 && str[0:3] != "mnt" {
@@ -101,10 +166,11 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 							}
 						}
 
+						newHeaders[column] = true
+						// replace the locally defined google sheets cell delimiter
+						// with workbench's pipe delimiter
 						str = strings.ReplaceAll(str, " ; ", "|")
-						if str != "" {
-							row[column] = append(row[column], str)
-						}
+						row[column] = append(row[column], str)
 					}
 				}
 			}
@@ -113,7 +179,7 @@ func readCSVWithJSONTags(filePath string) ([]map[string][]string, error) {
 		rows = append(rows, row)
 	}
 
-	return rows, nil
+	return newHeaders, rows, nil
 }
 
 func main() {
@@ -142,7 +208,7 @@ func main() {
 		flag.Usage()
 		return
 	}
-	rows, err := readCSVWithJSONTags(*source)
+	headers, rows, err := readCSVWithJSONTags(*source)
 	if err != nil {
 		slog.Error("Failed to read CSV", "err", err)
 		os.Exit(1)
@@ -158,32 +224,34 @@ func main() {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	// get all possible headers in the CSV
-	headers := []string{}
-	for header := range rows[0] {
-		headers = append(headers, header)
-	}
-
 	// check any columns that have no values
-	includeColumns := map[string]bool{}
-	for _, row := range rows {
-		for _, header := range headers {
-			if !includeColumns[header] && len(row[header]) > 0 {
-				includeColumns[header] = true
+	for k := range rows {
+		for header := range headers {
+			if header == "field_linked_agent.name" {
+				delete(headers, header)
+				name := rows[k][header]
+				if len(name) == 0 {
+					continue
+				}
+				header = "field_linked_agent"
+				headers[header] = true
+				vid := rows[k]["field_linked_agent.vid"]
+				rel := rows[k]["field_linked_agent.rel_type"]
+				rows[k][header] = []string{
+					fmt.Sprintf("%s:%s:%s", rel[0], vid[0], name[0]),
+				}
+			} else if header == "field_linked_agent.rel_type" || header == "field_linked_agent.vid" {
+				delete(headers, header)
 			}
 		}
 	}
-
-	// remove columns with no values from the header
-	headers = []string{}
-	for header, include := range includeColumns {
-		if include {
-			headers = append(headers, header)
-		}
+	firstRow := make([]string, 0, len(headers))
+	for header := range headers {
+		firstRow = append(firstRow, header)
 	}
 
 	// finally, write the header to the CSV
-	if err := writer.Write(headers); err != nil {
+	if err := writer.Write(firstRow); err != nil {
 		slog.Error("Failed to write record to CSV", "err", err)
 		os.Exit(1)
 	}
@@ -191,7 +259,7 @@ func main() {
 	// write the rows to the CSV
 	for _, row := range rows {
 		record := []string{}
-		for _, header := range headers {
+		for _, header := range firstRow {
 			record = append(record, strings.Join(row[header], "|"))
 		}
 		if err := writer.Write(record); err != nil {
@@ -201,4 +269,13 @@ func main() {
 	}
 
 	slog.Info("CSV file has been written successfully")
+}
+
+func StrInSlice(s string, sl []string) bool {
+	for _, a := range sl {
+		if a == s {
+			return true
+		}
+	}
+	return false
 }
