@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lehigh-university-libraries/fabricator/internal/tgn"
 	"github.com/lehigh-university-libraries/go-islandora/workbench"
 )
 
@@ -84,7 +86,17 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 							}
 							str = strings.TrimLeft(str, "0")
 						case "field_subject_hierarchical_geo":
-							str = `{"country":"United States","state":"Pennsylvania","county":"Lehigh","city":"Coplay"}`
+							tgn, err := tgn.GetLocationFromTGN(str)
+							if err != nil {
+								return nil, nil, fmt.Errorf("unknown TGN: %s %v", str, err)
+							}
+
+							locationJSON, err := json.Marshal(tgn)
+							if err != nil {
+								return nil, nil, fmt.Errorf("error marshalling TGN: %s %v", str, err)
+							}
+							str = string(locationJSON)
+
 						case "field_rights":
 							switch str {
 							case "IN COPYRIGHT":
