@@ -110,7 +110,6 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 
 	header := csvData[0]
 	doiPattern := regexp.MustCompile(`^10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+$`)
-	gettyTgnPattern := regexp.MustCompile(`^http://vocab\.getty\.edu/page/tgn/\d+$`)
 	datePattern := regexp.MustCompile(`^\d{4}(-\d{2}(-\d{2})?)?$`)
 	hierarchyChecked := map[string]bool{}
 	errors := map[string]string{}
