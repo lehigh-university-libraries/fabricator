@@ -13,6 +13,8 @@ import (
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/lehigh-university-libraries/fabricator/internal/contributor"
+	"github.com/lehigh-university-libraries/fabricator/internal/tgn"
 	"github.com/lestrrat-go/jwx/jwk"
 	edtf "github.com/sfomuseum/go-edtf/parser"
 )
@@ -109,9 +111,8 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 
 	header := csvData[0]
 	doiPattern := regexp.MustCompile(`^10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+$`)
-	gettyTgnPattern := regexp.MustCompile(`^http://vocab\.getty\.edu/page/tgn/\d+$`)
 	datePattern := regexp.MustCompile(`^\d{4}(-\d{2}(-\d{2})?)?$`)
-
+	hierarchyChecked := map[string]bool{}
 	errors := map[string]string{}
 	requiredFields := []string{
 		"Title",
@@ -172,7 +173,13 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					if _, ok := uploadIds[cell]; !ok {
 						errors[i] = "Unknown parent ID"
 					}
-				// make sure the file exists in the filesystem
+				case "Contributor":
+					var c contributor.Contributor
+					err := json.Unmarshal([]byte(cell), &c)
+					if err != nil {
+						errors[i] = "Contributor not in proper format"
+					}
+					// make sure the file exists in the filesystem
 				case "File Path":
 					filename := strings.ReplaceAll(cell, `\`, `/`)
 					filename = strings.TrimLeft(filename, "/")
@@ -189,30 +196,15 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 						errors[i] = "Invalid value. Must be Yes or No"
 					}
 				case "Hierarchical Geographic (Getty TGN)":
-					if !gettyTgnPattern.MatchString(cell) {
-						errors[i] = "Invalid Getty TGN URI"
-					}
-					hierarchyURL := strings.Replace(cell, "page", "hierarchy", 1)
-
-					req, err := http.NewRequest("GET", hierarchyURL, nil)
-					if err != nil {
+					if hierarchyChecked[cell] {
 						break
 					}
-					req.Header.Set("Accept", "application/json")
-
-					client := &http.Client{}
-					resp, err := client.Do(req)
+					hierarchyChecked[cell] = true
+					_, err := tgn.GetLocationFromTGN(cell)
 					if err != nil {
-						slog.Error("Unable to request hierarchy URL", "url", hierarchyURL, "err", err)
-						errors[i] = "Unable to request hierarchical information"
-						break
+						errors[i] = "Unable to get TGN"
 					}
-					defer resp.Body.Close()
 
-					if resp.StatusCode != http.StatusOK {
-						slog.Error("Unable to get hierarchy URL", "url", hierarchyURL, "err", err)
-						errors[i] = "Unable to get hierarchical information"
-					}
 				}
 			}
 		}

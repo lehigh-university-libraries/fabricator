@@ -8,8 +8,7 @@ function onEdit(e) {
   var activeCell = ss.getActiveCell();
   var columnNames = ["Related Department", "Language"];
   var columnName = sheet.getRange(1, activeCell.getColumn()).getValue();
-  var pattern = /^Contributor Relator \d+$/;
-  if (!columnNames.includes(columnName) && !pattern.test(columnName)) {
+  if (!columnNames.includes(columnName)) {
     return;
   }
 

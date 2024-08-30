@@ -2,17 +2,18 @@ package main
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/lehigh-university-libraries/fabricator/internal/handlers"
+	"github.com/lehigh-university-libraries/fabricator/internal/contributor"
+	"github.com/lehigh-university-libraries/fabricator/internal/tgn"
 	"github.com/lehigh-university-libraries/go-islandora/workbench"
 )
 
@@ -29,7 +30,7 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 		return nil, nil, err
 	}
 	defer file.Close()
-	re := regexp.MustCompile(`^\d{3}$`)
+	re := regexp.MustCompile(`^\d{2,3}$`)
 	reader := csv.NewReader(file)
 	headers, err := reader.Read()
 	if err != nil {
@@ -39,6 +40,7 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 	var rows []map[string][]string
 	newHeaders := map[string]bool{}
 	newCsv := &workbench.SheetsCsv{}
+	tgnCache := make(map[string]string)
 	for {
 		record, err := reader.Read()
 		if err != nil {
@@ -66,6 +68,19 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 							return nil, nil, fmt.Errorf("unknown column: %s", jsonTag)
 						}
 						switch column {
+						case "field_linked_agent":
+							var c contributor.Contributor
+							err := json.Unmarshal([]byte(str), &c)
+							if err != nil {
+								return nil, nil, fmt.Errorf("error unmarshalling contributor: %s %v", str, err)
+							}
+
+							str = c.Name
+
+							if c.Email != "" || c.Institution != "" || c.Orcid != "" {
+								slog.Warn("Need second workbench job", "name", c.Name, "contributor", c)
+							}
+
 						case "field_add_coverpage", "published":
 							switch str {
 							case "Yes":
@@ -84,8 +99,25 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 							if err != nil {
 								return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
 							}
+							str = strings.TrimLeft(str, "0")
 						case "field_subject_hierarchical_geo":
-							str = `{"country":"United States","state":"Pennsylvania","county":"Lehigh","city":"Coplay"}`
+							if _, ok := tgnCache[str]; ok {
+								str = tgnCache[str]
+								break
+							}
+
+							tgn, err := tgn.GetLocationFromTGN(str)
+							if err != nil {
+								return nil, nil, fmt.Errorf("unknown TGN: %s %v", str, err)
+							}
+
+							locationJSON, err := json.Marshal(tgn)
+							if err != nil {
+								return nil, nil, fmt.Errorf("error marshalling TGN: %s %v", str, err)
+							}
+							tgnCache[str] = string(locationJSON)
+							str = tgnCache[str]
+
 						case "field_rights":
 							switch str {
 							case "IN COPYRIGHT":
@@ -115,19 +147,6 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 							default:
 								return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
 							}
-						case "field_linked_agent.vid":
-							if str == "Corporate Body" {
-								str = "corporate_body"
-							} else if str == "Person" {
-								str = "person"
-							} else if str == "Family" {
-								str = "family"
-							} else {
-								return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
-							}
-						case "field_linked_agent.rel_type":
-							components := strings.Split(str, "|")
-							str = components[0]
 						case "field_extent.attr0=page",
 							"field_extent.attr0=dimensions",
 							"field_extent.attr0=bytes",
@@ -150,7 +169,12 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 							"field_identifier.attr0=report-number":
 							components := strings.Split(column, ".attr0=")
 							column = components[0]
-							str = fmt.Sprintf(`{"value":"%s","attr0":"%s"}`, str, components[1])
+							if column == "field_part_detail" {
+								str = fmt.Sprintf(`{"number":"%s","attr0":"%s"}`, str, components[1])
+
+							} else {
+								str = fmt.Sprintf(`{"value":"%s","attr0":"%s"}`, str, components[1])
+							}
 						case "field_geographic_subject.vid=geographic_naf",
 							"field_geographic_subject.vid=geographic_local":
 							components := strings.Split(column, ".vid=")
@@ -183,20 +207,6 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 }
 
 func main() {
-	var serverMode bool
-
-	flag.BoolVar(&serverMode, "server", false, "Set to true to run as server")
-	flag.Parse()
-
-	if serverMode {
-		// Start HTTP server
-		http.HandleFunc("/workbench/check", handlers.CheckMyWork)
-
-		slog.Info("Starting server on :8080")
-		if err := http.ListenAndServe(":8080", nil); err != nil {
-			panic(err)
-		}
-	}
 
 	// Define the source and target flags
 	source := flag.String("source", "", "Path to the source CSV file")
@@ -224,27 +234,6 @@ func main() {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	// check any columns that have no values
-	for k := range rows {
-		for header := range headers {
-			if header == "field_linked_agent.name" {
-				delete(headers, header)
-				name := rows[k][header]
-				if len(name) == 0 {
-					continue
-				}
-				header = "field_linked_agent"
-				headers[header] = true
-				vid := rows[k]["field_linked_agent.vid"]
-				rel := rows[k]["field_linked_agent.rel_type"]
-				rows[k][header] = []string{
-					fmt.Sprintf("%s:%s:%s", rel[0], vid[0], name[0]),
-				}
-			} else if header == "field_linked_agent.rel_type" || header == "field_linked_agent.vid" {
-				delete(headers, header)
-			}
-		}
-	}
 	firstRow := make([]string, 0, len(headers))
 	for header := range headers {
 		firstRow = append(firstRow, header)
