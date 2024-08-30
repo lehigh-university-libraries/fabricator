@@ -4,7 +4,27 @@
     <base target="_top">
     <style>
       .field-group {
-        margin-bottom: 10px;
+        padding-bottom: 20px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid black;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-flow: wrap;
+      }
+      .additional-metadata {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .additional-metadata input,
+      .additional-metadata select {
+        display:none;
+      }
+      .additional-metadata.show input,
+      .additional-metadata.show select {
+        display:initial;
       }
       .remove-button {
         margin-left: 10px;
@@ -286,6 +306,16 @@
         "relators:wpr": "Writer of preface",
         "relators:wst": "Writer of supplementary textual content"
       }
+      function getRandomString(length) {
+          const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+          let result = '';
+          const charactersLength = characters.length;
+          for (let i = 0; i < length; i++) {
+              result += characters.charAt(Math.floor(Math.random() * charactersLength));
+          }
+          return result;
+      }
+
       function addFieldGroup(select1Value = '', select2Value = '', textValue = '') {
         const container = document.getElementById('field-container');
         
@@ -313,7 +343,32 @@
         const textField = document.createElement('input');
         textField.type = 'text';
         textField.value = textValue;
-        
+        textField.placeholder = 'Name';
+
+        const orcidField = document.createElement('input');
+        orcidField.type = 'text';
+        orcidField.value = textValue;
+        orcidField.placeholder = 'ORCiD';
+
+        const select3 = document.createElement('select');
+        select3.innerHTML = `
+          <option value="" ${select2Value === '' ? 'selected' : ''}>- Status -</option>
+          <option value="Faculty" ${select2Value === 'Faculty' ? 'selected' : ''}>Faculty</option>
+          <option value="Staff" ${select2Value === 'Staff' ? 'selected' : ''}>Staff</option>
+          <option value="Undergraduate Student" ${select2Value === 'Undergraduate Student' ? 'selected' : ''}>Undergraduate Student</option>
+          <option value="Undergraduate Student" ${select2Value === 'Undergraduate Student' ? 'selected' : ''}>Graduate Student</option>
+        `;
+
+        const institutionField = document.createElement('input');
+        institutionField.type = 'text';
+        institutionField.value = textValue;
+        institutionField.placeholder = 'Institution';
+
+        const emailField = document.createElement('input');
+        emailField.type = 'email';
+        emailField.value = textValue;
+        emailField.placeholder = 'Email address';
+        emailField.prefix = '<br>';
         const removeButton = document.createElement('span');
         removeButton.className = 'remove-button';
         removeButton.innerText = '−';
@@ -321,10 +376,20 @@
           container.removeChild(groupDiv);
         };
         
+        const randomString = getRandomString(10);
+        const additionalMetadata = document.createElement('div');
+        additionalMetadata.className = "additional-metadata"
+        additionalMetadata.innerHTML = '<a href="#" onclick="this.parentElement.classList.toggle(\'show\'); return false;">Add additional contributor metadata</a>'
+
         groupDiv.appendChild(select1);
         groupDiv.appendChild(select2);
         groupDiv.appendChild(textField);
         groupDiv.appendChild(removeButton);
+        additionalMetadata.appendChild(emailField);
+        additionalMetadata.appendChild(orcidField);
+        additionalMetadata.appendChild(select3);
+        additionalMetadata.appendChild(institutionField);
+        groupDiv.appendChild(additionalMetadata)
         container.appendChild(groupDiv);
       }
 
