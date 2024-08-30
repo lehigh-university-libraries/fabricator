@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lehigh-university-libraries/fabricator/internal/contributor"
 	"github.com/lehigh-university-libraries/fabricator/internal/tgn"
 	"github.com/lehigh-university-libraries/go-islandora/workbench"
 )
@@ -67,6 +68,19 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 							return nil, nil, fmt.Errorf("unknown column: %s", jsonTag)
 						}
 						switch column {
+						case "field_linked_agent":
+							var c contributor.Contributor
+							err := json.Unmarshal([]byte(str), &c)
+							if err != nil {
+								return nil, nil, fmt.Errorf("error unmarshalling contributor: %s %v", str, err)
+							}
+
+							str = c.Name
+
+							if c.Email != "" || c.Institution != "" || c.Orcid != "" {
+								slog.Warn("Need second workbench job", "name", c.Name, "contributor", c)
+							}
+
 						case "field_add_coverpage", "published":
 							switch str {
 							case "Yes":

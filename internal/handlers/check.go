@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/lehigh-university-libraries/fabricator/internal/contributor"
 	"github.com/lehigh-university-libraries/fabricator/internal/tgn"
 	"github.com/lestrrat-go/jwx/jwk"
 	edtf "github.com/sfomuseum/go-edtf/parser"
@@ -172,7 +173,13 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					if _, ok := uploadIds[cell]; !ok {
 						errors[i] = "Unknown parent ID"
 					}
-				// make sure the file exists in the filesystem
+				case "Contributor":
+					var c contributor.Contributor
+					err := json.Unmarshal([]byte(cell), &c)
+					if err != nil {
+						errors[i] = "Contributor not in proper format"
+					}
+					// make sure the file exists in the filesystem
 				case "File Path":
 					filename := strings.ReplaceAll(cell, `\`, `/`)
 					filename = strings.TrimLeft(filename, "/")
@@ -193,7 +200,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 						break
 					}
 					hierarchyChecked[cell] = true
-					location, err := tgn.GetLocationFromTGN(tc.URI)
+					_, err := tgn.GetLocationFromTGN(cell)
 					if err != nil {
 						errors[i] = "Unable to get TGN"
 					}
