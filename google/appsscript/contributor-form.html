@@ -306,17 +306,8 @@
         "relators:wpr": "Writer of preface",
         "relators:wst": "Writer of supplementary textual content"
       }
-      function getRandomString(length) {
-          const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-          let result = '';
-          const charactersLength = characters.length;
-          for (let i = 0; i < length; i++) {
-              result += characters.charAt(Math.floor(Math.random() * charactersLength));
-          }
-          return result;
-      }
 
-      function addFieldGroup(select1Value = '', select2Value = '', textValue = '') {
+      function addFieldGroup(select1Value = '', select2Value = '', textValue = '', email = '',orcid = '', institution = '', status = '') {
         const container = document.getElementById('field-container');
         
         const groupDiv = document.createElement('div');
@@ -344,31 +335,35 @@
         textField.type = 'text';
         textField.value = textValue;
         textField.placeholder = 'Name';
+        textField.name = 'contributor-name';
 
         const orcidField = document.createElement('input');
         orcidField.type = 'text';
-        orcidField.value = textValue;
+        orcidField.value = orcid;
         orcidField.placeholder = 'ORCiD';
+        orcidField.name = 'orcid';
 
         const select3 = document.createElement('select');
         select3.innerHTML = `
-          <option value="" ${select2Value === '' ? 'selected' : ''}>- Status -</option>
-          <option value="Faculty" ${select2Value === 'Faculty' ? 'selected' : ''}>Faculty</option>
-          <option value="Staff" ${select2Value === 'Staff' ? 'selected' : ''}>Staff</option>
-          <option value="Undergraduate Student" ${select2Value === 'Undergraduate Student' ? 'selected' : ''}>Undergraduate Student</option>
-          <option value="Undergraduate Student" ${select2Value === 'Undergraduate Student' ? 'selected' : ''}>Graduate Student</option>
+          <option value="" ${status === '' ? 'selected' : ''}>- Status -</option>
+          <option value="Faculty" ${status === 'Faculty' ? 'selected' : ''}>Faculty</option>
+          <option value="Staff" ${status === 'Staff' ? 'selected' : ''}>Staff</option>
+          <option value="Undergraduate Student" ${status === 'Undergraduate Student' ? 'selected' : ''}>Undergraduate Student</option>
+          <option value="Undergraduate Student" ${status === 'Undergraduate Student' ? 'selected' : ''}>Graduate Student</option>
         `;
 
         const institutionField = document.createElement('input');
         institutionField.type = 'text';
-        institutionField.value = textValue;
+        institutionField.value = institution;
         institutionField.placeholder = 'Institution';
+        institutionField.name = 'institution';
 
         const emailField = document.createElement('input');
         emailField.type = 'email';
-        emailField.value = textValue;
+        emailField.value = email;
         emailField.placeholder = 'Email address';
         emailField.prefix = '<br>';
+
         const removeButton = document.createElement('span');
         removeButton.className = 'remove-button';
         removeButton.innerText = '−';
@@ -399,12 +394,19 @@
         
         fieldGroups.forEach((group, index) => {
           const selects = group.querySelectorAll('select');
-          const textField = group.querySelector('input[type="text"]');
+          const textField = group.querySelector('input[name="contributor-name"]');
           const select1Value = selects[0].value;
           const select2Value = selects[1].value;
+          const select3Value = selects[2].value;
           const textValue = textField.value;
-          
-          result += `${select1Value}:${select2Value}:${textValue}`;
+          const contributor = {
+            "name": `${select1Value}:${select2Value}:${textValue}`,
+            "email": group.querySelector('input[type="email"]'),
+            "orcid": group.querySelector('input[name="orcid"]'),
+            "institution": group.querySelector('input[name="institution"]'),
+            "status": select3Value,
+          }
+          result += JSON.stringify(contributor);
           if (index < fieldGroups.length - 1) {
             result += ' ; ';
           }
@@ -418,11 +420,12 @@
         if (data) {
           const entries = data.split(' ; ');
           entries.forEach(entry => {
-            const values = entry.split(':');
+            const c = JSON.parse(entry);
+            const values = c['name'].split(':');
             const relator = values.shift() + ':' + values.shift();
             const vid = values.shift();
             const label = values.join(':');
-            addFieldGroup(relator, vid, label);
+            addFieldGroup(relator, vid, label, c['email'], c['orcid'], c['institution'], c['status']);
           });
         }
       }
