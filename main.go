@@ -39,6 +39,7 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 	var rows []map[string][]string
 	newHeaders := map[string]bool{}
 	newCsv := &workbench.SheetsCsv{}
+	tgnCache := make(map[string]string)
 	for {
 		record, err := reader.Read()
 		if err != nil {
@@ -86,6 +87,11 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 							}
 							str = strings.TrimLeft(str, "0")
 						case "field_subject_hierarchical_geo":
+							if _, ok := tgnCache[str]; ok {
+								str = tgnCache[str]
+								break
+							}
+
 							tgn, err := tgn.GetLocationFromTGN(str)
 							if err != nil {
 								return nil, nil, fmt.Errorf("unknown TGN: %s %v", str, err)
@@ -95,7 +101,8 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 							if err != nil {
 								return nil, nil, fmt.Errorf("error marshalling TGN: %s %v", str, err)
 							}
-							str = string(locationJSON)
+							tgnCache[str] = string(locationJSON)
+							str = tgnCache[str]
 
 						case "field_rights":
 							switch str {
