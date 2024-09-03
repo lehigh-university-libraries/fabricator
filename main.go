@@ -17,6 +17,8 @@ import (
 	"github.com/lehigh-university-libraries/go-islandora/workbench"
 )
 
+var linkedAgents [][]string
+
 func getJSONFieldName(tag string) string {
 	if commaIndex := strings.Index(tag, ","); commaIndex != -1 {
 		return tag[:commaIndex]
@@ -39,6 +41,14 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 
 	var rows []map[string][]string
 	newHeaders := map[string]bool{}
+	linkedAgents = append(linkedAgents, []string{
+		"name",
+		"vid",
+		"field_contributor_status",
+		"field_relationships",
+		"field_email",
+		"field_identifier",
+	})
 	newCsv := &workbench.SheetsCsv{}
 	tgnCache := make(map[string]string)
 	for {
@@ -77,9 +87,22 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 								}
 
 								str = c.Name
-
-								if c.Email != "" || c.Institution != "" || c.Orcid != "" {
-									slog.Warn("Need second workbench job", "name", c.Name, "contributor", c)
+								if c.Institution != "" {
+									str = fmt.Sprintf("%s - %s", str, c.Institution)
+								}
+								if c.Status != "" || c.Email != "" || c.Institution != "" || c.Orcid != "" {
+									name := strings.Split(str, ":")
+									if len(name) < 4 {
+										return nil, nil, fmt.Errorf("poorly formatted contributor: %s %v", str, err)
+									}
+									linkedAgents = append(linkedAgents, []string{
+										strings.Join(name[3:], ":"),
+										"person",
+										c.Status,
+										fmt.Sprintf("schema:worksFor:corporate_body:%s", c.Institution),
+										c.Email,
+										fmt.Sprintf(`{"attr0": "orcid", "value": "%s"}`, c.Orcid),
+									})
 								}
 
 							case "field_add_coverpage", "published":
@@ -258,8 +281,30 @@ func main() {
 			os.Exit(1)
 		}
 	}
-
 	slog.Info("CSV file has been written successfully")
+	if len(linkedAgents) == 1 {
+		return
+	}
+
+	csvFile := strings.Replace(*target, ".csv", ".agents.csv", 1)
+	aFile, err := os.Create(csvFile)
+	if err != nil {
+		slog.Error("Failed to create file", "file", csvFile, "err", err)
+		os.Exit(1)
+	}
+	defer aFile.Close()
+
+	aWriter := csv.NewWriter(aFile)
+	defer aWriter.Flush()
+
+	for _, row := range linkedAgents {
+		slog.Info("LA", "row", row)
+		if err := aWriter.Write(row); err != nil {
+			slog.Error("Failed to write record to CSV", "err", err)
+			os.Exit(1)
+		}
+	}
+	slog.Info("Linked Agent CSV file has been written successfully")
 }
 
 func StrInSlice(s string, sl []string) bool {
