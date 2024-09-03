@@ -298,7 +298,6 @@ func main() {
 	defer aWriter.Flush()
 
 	for _, row := range linkedAgents {
-		slog.Info("LA", "row", row)
 		if err := aWriter.Write(row); err != nil {
 			slog.Error("Failed to write record to CSV", "err", err)
 			os.Exit(1)
