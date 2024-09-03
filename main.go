@@ -44,8 +44,7 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 	var rows []map[string][]string
 	newHeaders := map[string]bool{}
 	linkedAgents = append(linkedAgents, []string{
-		"name",
-		"vid",
+		"term_name",
 		"field_contributor_status",
 		"field_relationships",
 		"field_email",
@@ -97,14 +96,21 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 									if len(name) < 4 {
 										return nil, nil, fmt.Errorf("poorly formatted contributor: %s %v", str, err)
 									}
-									linkedAgents = append(linkedAgents, []string{
+									agent := []string{
 										strings.Join(name[3:], ":"),
-										"person",
 										c.Status,
 										fmt.Sprintf("schema:worksFor:corporate_body:%s", c.Institution),
 										c.Email,
 										fmt.Sprintf(`{"attr0": "orcid", "value": "%s"}`, c.Orcid),
-									})
+									}
+									if c.Institution == "" {
+										agent[2] = ""
+									}
+									if c.Orcid == "" {
+										agent[4] = ""
+									}
+
+									linkedAgents = append(linkedAgents, agent)
 								}
 
 							case "field_add_coverpage", "published":
@@ -206,7 +212,9 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 								components := strings.Split(column, ".vid=")
 								column = components[0]
 								str = fmt.Sprintf("%s:%s", components[1], str)
-							// TODO case "field_related_item.title":
+							case "field_related_item.title":
+								column = "field_related_item"
+								str = fmt.Sprintf(`{"title": "%s"}`, str)
 							// TODO	case "field_related_item.identifier_type=issn":
 							case "file":
 								str = strings.ReplaceAll(str, `\`, `/`)
