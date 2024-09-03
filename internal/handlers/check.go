@@ -179,6 +179,15 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					if err != nil {
 						errors[i] = "Contributor not in proper format"
 					}
+					name := strings.Split(c.Name, ":")
+					if len(name) < 4 {
+						errors[i] = "Contributor name not in proper format"
+					}
+					if c.Status != "" || c.Email != "" || c.Institution != "" || c.Orcid != "" {
+						if name[2] != "person" {
+							errors[i] = "Additional fields can only be applied to people"
+						}
+					}
 					// make sure the file exists in the filesystem
 				case "File Path":
 					filename := strings.ReplaceAll(cell, `\`, `/`)
