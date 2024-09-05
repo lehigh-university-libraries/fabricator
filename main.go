@@ -223,6 +223,8 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 									str = fmt.Sprintf("/mnt/islandora_staging/%s", str)
 								}
 							}
+
+							str = strings.TrimSpace(str)
 							values = append(values, str)
 						}
 
