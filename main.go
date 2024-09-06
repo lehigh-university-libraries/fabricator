@@ -202,7 +202,7 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 								components := strings.Split(column, ".attr0=")
 								column = components[0]
 								if column == "field_part_detail" {
-									str = fmt.Sprintf(`{"number":"%s","attr0":"%s"}`, str, components[1])
+									str = fmt.Sprintf(`{"number":"%s","type":"%s"}`, str, components[1])
 
 								} else {
 									str = fmt.Sprintf(`{"value":"%s","attr0":"%s"}`, str, components[1])
