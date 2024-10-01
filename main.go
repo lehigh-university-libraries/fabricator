@@ -34,7 +34,7 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 		return nil, nil, err
 	}
 	defer file.Close()
-	re := regexp.MustCompile(`^\d{2,3}$`)
+	re := regexp.MustCompile(`^\d{1,4}$`)
 	reader := csv.NewReader(file)
 	headers, err := reader.Read()
 	if err != nil {
@@ -76,10 +76,11 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 						if column == "" {
 							return nil, nil, fmt.Errorf("unknown column: %s", jsonTag)
 						}
+						originalColumn := column
 
 						values := []string{}
 						for _, str := range strings.Split(record[i], " ; ") {
-							switch column {
+							switch originalColumn {
 							case "field_linked_agent":
 								var c contributor.Contributor
 								err := json.Unmarshal([]byte(str), &c)
@@ -199,7 +200,9 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 								"field_identifier.attr0=uri",
 								"field_identifier.attr0=call-number",
 								"field_identifier.attr0=report-number":
-								components := strings.Split(column, ".attr0=")
+								components := strings.Split(originalColumn, ".attr0=")
+								str = strings.ReplaceAll(str, `\`, `\\`)
+								str = strings.ReplaceAll(str, `"`, `\"`)
 								column = components[0]
 								if column == "field_part_detail" {
 									str = fmt.Sprintf(`{"number":"%s","type":"%s"}`, str, components[1])
@@ -209,13 +212,15 @@ func readCSVWithJSONTags(filePath string) (map[string]bool, []map[string][]strin
 								}
 							case "field_geographic_subject.vid=geographic_naf",
 								"field_geographic_subject.vid=geographic_local":
-								components := strings.Split(column, ".vid=")
+								components := strings.Split(originalColumn, ".vid=")
 								column = components[0]
 								str = fmt.Sprintf("%s:%s", components[1], str)
 							case "field_related_item.title":
 								column = "field_related_item"
 								str = fmt.Sprintf(`{"title": "%s"}`, str)
-							// TODO	case "field_related_item.identifier_type=issn":
+							case "field_related_item.identifier_type=issn":
+								column = "field_related_item"
+								str = fmt.Sprintf(`{"type": "issn", "identifier": "%s"}`, str)
 							case "file":
 								str = strings.ReplaceAll(str, `\`, `/`)
 								str = strings.TrimLeft(str, "/")
