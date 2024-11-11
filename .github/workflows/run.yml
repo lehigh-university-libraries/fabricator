@@ -13,10 +13,10 @@ on:
         type: string
         default: "Sheet1"
 jobs:
-  check:
+  run:
     env:
       SHARED_SECRET: abc123
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: read
       id-token: write
@@ -37,7 +37,9 @@ jobs:
         run: go build -o fabricator
 
       - name: run
-        run: nohup ./fabricator -server=1 &
+        run: |
+          nohup ./fabricator -server=1 &
+          echo $! > fabricator_pid.txt
 
       - id: 'auth'
         name: 'Authenticate to Google Cloud'
@@ -51,9 +53,68 @@ jobs:
 
       - name: download sheet
         run: |-
-          ./scripts/download.sh "${{ github.event.inputs.url }}" "${{ github.event.inputs.range }}" "${{ steps.auth.outputs.access_token }}"
-          curl -v \
+          ./scripts/download.sh
+          STATUS=$(curl -v \
+            -w '%{http_code}' \
             -H "X-Secret: $SHARED_SECRET" \
             -XPOST \
             --upload-file csv.json \
-            http://localhost:8080/workbench/check
+            http://localhost:8080/workbench/check)
+          if [ ${STATUS} -gt 299 ]; then
+            echo "Check my work failed"
+            exit 1
+          fi
+        env:
+          URL: ${{ github.event.inputs.url }}
+          RANGE: ${{ github.event.inputs.range }}
+          ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+
+      - name: run
+        run: ./fabricator --source source.csv --target target.csv
+
+      - name: Checkout workbench
+        uses: actions/checkout@v4
+        with:
+          repository: lehigh-university-libraries/islandora_workbench
+          ref: simple-field-json
+          path: islandora_workbench
+
+      - name: execute
+        working-directory: islandora_workbench
+        env:
+          ISLANDORA_WORKBENCH_PASSWORD: ${{ secrets.ISLANDORA_WORKBENCH_PASSWORD }}
+        run: |-
+          mkdir logs
+          mv ../workbench-configs configs
+          mv ../*.csv input_data/
+          if [ -f source.agents.csv ]; then
+            python3 workbench --config configs/terms.yml
+            cat logs/agents.log
+            echo "Checking for any errors"
+            grep ERROR logs/agents.log && exit 1 || echo "No errors"
+          fi
+          python3 workbench --config configs/create.yml
+          cat logs/items.log
+          grep ERROR logs/items.log && exit 1 || echo "No errors"
+
+      - name: Get Job ID from GH API
+        id: get-job-id
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          jobs=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id}}/attempts/${{ github.run_attempt }}/jobs)
+          job_id=$(echo $jobs | jq -r '.jobs[] | select(.runner_name=="${{ runner.name }}") | .id')
+          echo "job_id=$job_id" >> $GITHUB_OUTPUT
+
+      - name: Notify Slack after job runs
+        run: |-
+          curl -s -o /dev/null -XPOST $SLACK_WEBHOOK_URL -d '{
+            "text": ":islandora: :hammer_and_wrench: Workbench job complete ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ steps.get-job-id.outputs.job_id }}#step:11:1",
+          }'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Terminate Fabricator process
+        if: always()
+        run: |
+          kill $(cat fabricator_pid.txt)

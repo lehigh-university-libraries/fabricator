@@ -1,0 +1,7 @@
+task: create
+host: https://preserve.lehigh.edu
+username: workbench
+allow_adding_terms: true
+input_csv: target.csv
+log_file_path: logs/items.log
+log_file_mode: w

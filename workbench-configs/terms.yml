@@ -1,0 +1,7 @@
+task: create_terms
+host: https://preserve.lehigh.edu
+username: workbench
+vocab_id: person
+input_csv: source.agents.csv
+log_file_path: logs/agents.log
+log_file_mode: w
