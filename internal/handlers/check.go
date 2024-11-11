@@ -206,7 +206,7 @@ func fileExists(filename string) bool {
 
 func authRequest(w http.ResponseWriter, r *http.Request) bool {
 	secret := r.Header.Get("X-Secret")
-	if secret != os.Getenv("SHARED_SECRET") {
+	if secret == os.Getenv("SHARED_SECRET") {
 		return true
 	}
 

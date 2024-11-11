@@ -1,0 +1,59 @@
+name: run workbench
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: URL to Google Sheet
+        required: true
+        type: string
+      range:
+        description: Which sheet to download
+        required: true
+        type: string
+        default: "Sheet1"
+jobs:
+  check:
+    env:
+      SHARED_SECRET: abc123
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: "workbench-executions"
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.23.3'
+
+      - name: Install dependencies
+        run: go get .
+
+      - name: Build
+        run: go build -o fabricator
+
+      - name: run
+        run: nohup ./fabricator -server=1 &
+
+      - id: 'auth'
+        name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          workload_identity_provider: ${{ secrets.WORKBENCH_GCLOUD_OIDC_POOL }}
+          create_credentials_file: true
+          service_account: ${{ secrets.WORKBENCH_GSA }}
+          token_format: 'access_token'
+          access_token_scopes: "https://www.googleapis.com/auth/spreadsheets.readonly"
+
+      - name: download sheet
+        run: |-
+          ./scripts/download.sh "${{ github.event.inputs.url }}" "${{ github.event.inputs.range }}" "${{ steps.auth.outputs.access_token }}"
+          curl -v \
+            -H "X-Secret: $SHARED_SECRET" \
+            -XPOST \
+            --upload-file csv.json \
+            http://localhost:8080/workbench/check
