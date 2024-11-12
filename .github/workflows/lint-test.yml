@@ -20,7 +20,10 @@ jobs:
         run: go get .
 
       - name: Build
-        run: go build -v ./...
+        run: shellcheck **/*.sh
+
+      - name: Build
+        run: go build
 
       - name: Test with the Go CLI
         run: go test -v ./...
