@@ -24,6 +24,12 @@ jobs:
       group: "workbench-executions"
       cancel-in-progress: false
     steps:
+      - name: Validate input
+        run: ./scripts/validate.sh
+        env:
+          URL: ${{ github.event.inputs.url }}
+          RANGE: ${{ github.event.inputs.range }}
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
@@ -36,11 +42,6 @@ jobs:
       - name: Build
         run: go build -o fabricator
 
-      - name: run
-        run: |
-          nohup ./fabricator -server=1 &
-          echo $! > fabricator_pid.txt
-
       - id: 'auth'
         name: 'Authenticate to Google Cloud'
         uses: 'google-github-actions/auth@v1'
@@ -51,25 +52,30 @@ jobs:
           token_format: 'access_token'
           access_token_scopes: "https://www.googleapis.com/auth/spreadsheets.readonly"
 
-      - name: download sheet
-        run: |-
-          ./scripts/download.sh
-          STATUS=$(curl -v \
-            -w '%{http_code}' \
-            -H "X-Secret: $SHARED_SECRET" \
-            -XPOST \
-            --upload-file csv.json \
-            http://localhost:8080/workbench/check)
-          if [ ${STATUS} -gt 299 ]; then
-            echo "Check my work failed"
-            exit 1
-          fi
+      - name: Get Job ID from GH API
+        id: get-job-id
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          jobs=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id}}/attempts/${{ github.run_attempt }}/jobs)
+          job_id=$(echo $jobs | jq -r '.jobs[] | select(.runner_name=="${{ runner.name }}") | .id')
+          echo "job_id=$job_id" >> $GITHUB_OUTPUT
+
+      - name: Notify Slack on Start
+        if: ${{ success() }}
+        run: ./scripts/slack.sh
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          MESSAGE: ":islandora-logo: :hammer_and_wrench: Workbench job started by ${{ github.actor }}. View details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ steps.get-job-id.outputs.job_id }}#step:11:1"
+
+      - name: download google sheet
+        run: ./scripts/download.sh
         env:
           URL: ${{ github.event.inputs.url }}
           RANGE: ${{ github.event.inputs.range }}
           ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
 
-      - name: run
+      - name: transform google sheet to workbench csv
         run: ./fabricator --source source.csv --target target.csv
 
       - name: Checkout workbench
@@ -81,40 +87,24 @@ jobs:
 
       - name: execute
         working-directory: islandora_workbench
+        run: ./scripts/run-workbench.sh
         env:
           ISLANDORA_WORKBENCH_PASSWORD: ${{ secrets.ISLANDORA_WORKBENCH_PASSWORD }}
-        run: |-
-          mkdir logs
-          mv ../workbench-configs configs
-          mv ../*.csv input_data/
-          if [ -f source.agents.csv ]; then
-            python3 workbench --config configs/terms.yml
-            cat logs/agents.log
-            echo "Checking for any errors"
-            grep ERROR logs/agents.log && exit 1 || echo "No errors"
-          fi
-          python3 workbench --config configs/create.yml
-          cat logs/items.log
-          grep ERROR logs/items.log && exit 1 || echo "No errors"
 
-      - name: Get Job ID from GH API
-        id: get-job-id
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          jobs=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id}}/attempts/${{ github.run_attempt }}/jobs)
-          job_id=$(echo $jobs | jq -r '.jobs[] | select(.runner_name=="${{ runner.name }}") | .id')
-          echo "job_id=$job_id" >> $GITHUB_OUTPUT
-
-      - name: Notify Slack after job runs
-        run: |-
-          curl -s -o /dev/null -XPOST $SLACK_WEBHOOK_URL -d '{
-            "text": ":islandora: :hammer_and_wrench: Workbench job complete ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ steps.get-job-id.outputs.job_id }}#step:11:1",
-          }'
+      - name: Notify Slack on Success
+        if: ${{ success() }}
+        run: ./scripts/slack.sh
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          MESSAGE: "✅ Workbench job succeeded!"
 
-      - name: Terminate Fabricator process
-        if: always()
-        run: |
-          kill $(cat fabricator_pid.txt)
+      - name: Notify Slack on Failure
+        if: ${{ failure() }}
+        run: ./scripts/slack.sh
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          MESSAGE: "🚨 Workbench job failed!"
+
+      - name: cleanup
+        if: ${{ always() }}
+        run: ./scripts/cleanup.sh

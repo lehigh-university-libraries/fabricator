@@ -1,1 +1,4 @@
 fabricator
+fabricator_pid.txt
+nohup.out
+*.csv
