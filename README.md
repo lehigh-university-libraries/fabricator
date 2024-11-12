@@ -41,7 +41,7 @@ This is an http service with two routes:
 ```
 export SHARED_SECRET=changeme
 go build
-nohup ./fabrictor &
+nohup ./fabricator &
 echo $! > pid
 ```
 

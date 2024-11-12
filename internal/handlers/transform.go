@@ -35,11 +35,8 @@ func TransformCsv(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
-	defer file.Close()
 
 	writer := csv.NewWriter(file)
-	defer writer.Flush()
-
 	firstRow := make([]string, 0, len(headers))
 	for header := range headers {
 		firstRow = append(firstRow, header)
@@ -64,6 +61,8 @@ func TransformCsv(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	writer.Flush()
+	file.Close()
 
 	files := []string{
 		target,
@@ -102,7 +101,6 @@ func TransformCsv(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error opening file: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-		defer file.Close()
 
 		fileName := filepath.Base(filePath)
 		zipFile, err := zipWriter.Create(fileName)
@@ -116,7 +114,9 @@ func TransformCsv(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error writing to zip: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
+		file.Close()
 		os.Remove(filePath)
+		w.(http.Flusher).Flush()
 	}
 
 }
