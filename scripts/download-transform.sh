@@ -43,7 +43,20 @@ if [ "${STATUS}" -gt 299 ] || [ "${STATUS}" -lt 200 ]; then
 fi
 
 # transform google sheet to a workbench CSV
-./fabricator --source source.csv --target target.csv
+STATUS=$(curl -v \
+  -w '%{http_code}' \
+  -H "X-Secret: $SHARED_SECRET" \
+  -XPOST \
+  -o target.zip \
+  --upload-file source.csv \
+  http://localhost:8080/workbench/transform)
+if [ "${STATUS}" -gt 299 ] || [ "${STATUS}" -lt 200 ]; then
+  echo "CSV transform failed"
+  exit 1
+fi
+
+unzip target.zip
+rm target.zip
 
 # make sure source and target CSVs line count match
 SOURCE=$(wc -l < source.csv)
