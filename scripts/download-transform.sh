@@ -41,3 +41,36 @@ if [ "${STATUS}" -gt 299 ] || [ "${STATUS}" -lt 200 ]; then
   echo "Check my work failed"
   exit 1
 fi
+
+# transform google sheet to a workbench CSV
+./fabricator --source source.csv --target target.csv
+
+# make sure source and target CSVs line count match
+SOURCE=$(wc -l < source.csv)
+TARGET=$(wc -l < target.csv)
+if [ "$SOURCE" != "$TARGET" ]; then
+  echo "source and target CSVs don't match ($SOURCE != $TARGET)"
+  exit 1
+fi
+
+# and that we're uploading at least one item
+if [ "$TARGET" -lt 2 ]; then
+  echo "target CSV less than two lines long"
+  exit 1
+fi
+
+# and some required headers exist
+header=$(head -1 target.csv)
+required_fields=("field_model" "title" "field_full_title" "id")
+missing_fields=()
+for field in "${required_fields[@]}"; do
+  if ! grep -q "$field" <<< "$header"; then
+    missing_fields+=("$field")
+  fi
+done
+if [ ${#missing_fields[@]} -eq 0 ]; then
+  echo "All required fields are present in the header."
+else
+  echo "Missing fields: ${missing_fields[*]}"
+  exit 1
+fi

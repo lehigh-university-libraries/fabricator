@@ -67,15 +67,12 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           MESSAGE: ":islandora-logo: :hammer_and_wrench: Workbench job started by ${{ github.actor }}. View details: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ steps.get-job-id.outputs.job_id }}#step:11:1"
 
-      - name: download google sheet
-        run: ./scripts/download.sh
+      - name: download and transform google sheet
+        run: ./scripts/download-transform.sh
         env:
           URL: ${{ github.event.inputs.url }}
           RANGE: ${{ github.event.inputs.range }}
           ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
-
-      - name: transform google sheet to workbench csv
-        run: ./fabricator --source source.csv --target target.csv
 
       - name: Checkout workbench
         uses: actions/checkout@v4
