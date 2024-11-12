@@ -62,7 +62,6 @@ jobs:
           echo "job_id=$job_id" >> $GITHUB_OUTPUT
 
       - name: Notify Slack on Start
-        if: ${{ success() }}
         run: ./scripts/slack.sh
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
