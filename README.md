@@ -1,12 +1,13 @@
 # fabricator
 
-Transform a Google Sheet URL into a fully executed [Islandora Workbench](https://github.com/mjordan/islandora_workbench) task.
+Transform a Google Sheet URL into a fully executed [Islandora Workbench](https://mjordan.github.io/islandora_workbench_docs/) task.
 
 ## Overview
 
 - Content creators can work in Google Sheets to prepare a spreadsheet
 - [A Google Appscript](./google/appsscript) is embeded in the sheet to allow easily checking their work
-- When the spreadsheet is ready, it can be ingested into Islandora/Drupal via Islandora Workbench by supplying the sheet URL in [the GitHub Action](./.github/workflows/run.yml)
+- When the spreadsheet is ready, it can be ingested into Islandora/Drupal via Islandora Workbench by [supplying the sheet URL in the GitHub Action](../.././actions/workflows/run.yml)
+  - requires write access on this repo to execute the workflow
 
 ```mermaid
 sequenceDiagram
@@ -26,7 +27,14 @@ sequenceDiagram
     Alice->>GitHub: View action logs
 ```
 
-## Getting started
+## Development
+
+This is an http service with two routes:
+
+- `/workbench/check`
+  - check if a google sheet content is well formed
+- `/workbench/transform`
+  - transform a google sheet CSV export into a workbench CSV
 
 ### Start the server
 

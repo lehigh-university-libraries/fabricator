@@ -14,7 +14,7 @@ mv ../*.csv input_data/
 
 # if we had linked agents with additional metadata
 # run that job first
-if [ -f source.agents.csv ]; then
+if [ -f target.agents.csv ]; then
   python3 workbench --config configs/terms.yml
 
   # fail the job if workbench logged any errors
