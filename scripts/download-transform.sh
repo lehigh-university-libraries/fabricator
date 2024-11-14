@@ -26,8 +26,15 @@ else
   exit 1
 fi
 
-nohup ./fabricator -server=1 &
+nohup ./fabricator &
 echo $! > fabricator_pid.txt
+while true; do
+  STATUS=$(curl -s -w '%{http_code}' -o /dev/null http://localhost:8080/healthcheck)
+  if [ "${STATUS}" -eq 200 ]; then
+    break
+  fi
+  sleep 1
+done
 
 # make sure the sheet passes the check my work
 STATUS=$(curl -v \
