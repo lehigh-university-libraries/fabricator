@@ -33,6 +33,7 @@ while true; do
   if [ "${STATUS}" -eq 200 ]; then
     break
   fi
+  echo "Waiting for fabricator to come online"
   sleep 1
 done
 
