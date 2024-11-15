@@ -57,6 +57,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 	requiredFields := []string{
 		"Title",
 		"Object Model",
+		"Full Title",
 	}
 	uploadIds := map[string]bool{}
 	for rowIndex, row := range csvData[1:] {
