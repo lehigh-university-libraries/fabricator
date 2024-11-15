@@ -63,12 +63,20 @@ jobs:
           job_id=$(echo $jobs | jq -r '.jobs[] | select(.runner_name=="${{ runner.name }}") | .id')
           echo "job_id=$job_id" >> $GITHUB_OUTPUT
 
+      - name: query google
+        run: ./scripts/download.sh
+        env:
+          URL: ${{ github.event.inputs.url }}
+          RANGE: ${{ github.event.inputs.range }}
+          ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+
       - name: Notify Slack on Start
         run: ./scripts/slack.sh
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_TEST_URL }}
           MESSAGE: |
-            :islandora-logo: :hammer_and_wrench: ${{ github.actor }} started workbench ingest for __TITLE__
+            :islandora-logo: :hammer_and_wrench:
+            ${{ github.actor }} started workbench ingest for __TITLE__
 
             Items being ingested: __LINE_COUNT__
 
@@ -76,11 +84,9 @@ jobs:
 
             Workbench execution: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ steps.get-job-id.outputs.job_id }}#step:12:1
           URL: ${{ github.event.inputs.url }}
-          RANGE: ${{ github.event.inputs.range }}
-          ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
 
-      - name: download and transform google sheet
-        run: ./scripts/download-transform.sh
+      - name: transform google sheet
+        run: ./scripts/transform.sh
         env:
           URL: ${{ github.event.inputs.url }}
           RANGE: ${{ github.event.inputs.range }}
