@@ -5,3 +5,6 @@ allow_adding_terms: true
 input_csv: target.csv
 log_file_path: logs/items.log
 log_file_mode: w
+allow_missing_files: true
+additional_files:
+ - supplemental_file: 151326

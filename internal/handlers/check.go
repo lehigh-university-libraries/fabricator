@@ -88,6 +88,13 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 
+				if column == "File Path" {
+					model := ColumnValue("Object Model", header, row)
+					if strInSlice(model, []string{"Binary", "Video", "Page", "Image", "Digital Document"}) {
+						errors[i] = "Missing source file"
+					}
+				}
+
 				continue
 			}
 
@@ -169,7 +176,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					}
 
 					// make sure the file exists in the filesystem
-				case "File Path":
+				case "File Path", "Supplemental File":
 					filename := strings.ReplaceAll(cell, `\`, `/`)
 					filename = strings.TrimLeft(filename, "/")
 					if len(filename) > 3 && filename[0:3] != "mnt" {
