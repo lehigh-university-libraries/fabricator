@@ -1,8 +1,17 @@
 function onOpen() {
   var ui = SpreadsheetApp.getUi();
   ui.createMenu('Lehigh Preserve')
+    .addItem('Open Contributor Form', 'showForm')
     .addItem('Check My Work', 'sendSheetData')
+    .addItem('Start workbench ingest', 'openExternalLink')
     .addToUi();
+}
+
+function openExternalLink() {
+  var html = HtmlService.createHtmlOutput(
+    '<p><a href="https://github.com/login?return_to=https%3A%2F%2Fgithub.com%2Flehigh-university-libraries%2Ffabricator%2Factions%2Fworkflows%2Frun.yml" target="_blank">Go to GitHub</a> to start a workbench ingest.</p><p>Make sure to copy the URL of this sheet to start the ingest.</p>'
+  ).setWidth(300).setHeight(120);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Start workbench ingest');
 }
 
 function sendSheetData() {
