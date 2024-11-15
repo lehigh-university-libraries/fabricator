@@ -88,6 +88,13 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 
+				if column == "File Path" {
+					model := ColumnValue("Object Model", header, row)
+					if strInSlice(model, []string{"Binary", "Video", "Page", "Image", "Digital Document"}) {
+						errors[i] = "Missing source file"
+					}
+				}
+
 				continue
 			}
 
