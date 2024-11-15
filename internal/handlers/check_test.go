@@ -57,7 +57,7 @@ func TestCheckMyWork(t *testing.T) {
 			method: http.MethodPost,
 			body: [][]string{
 				{"Title", "Object Model", "Full Title"},
-				{"Test Title", "Model", "Full Test Title"},
+				{"foo", "bar", "Full Test Title"},
 			},
 			statusCode: http.StatusOK,
 			response:   "{}", // Empty errors map
@@ -67,7 +67,7 @@ func TestCheckMyWork(t *testing.T) {
 			method: http.MethodPost,
 			body: [][]string{
 				{"Title", "Object Model", "Full Title"},
-				{"", "Model", "foo"},
+				{"", "bar", "foo"},
 			},
 			statusCode: http.StatusOK,
 			response:   `{"A2":"Missing value"}`,
@@ -87,10 +87,143 @@ func TestCheckMyWork(t *testing.T) {
 			method: http.MethodPost,
 			body: [][]string{
 				{"Title", "Object Model", "Full Title"},
-				{"Test Title", "Model", ""},
+				{"foo", "bar", ""},
 			},
 			statusCode: http.StatusOK,
 			response:   `{"C2":"Missing value"}`,
+		},
+		{
+			name:   "Missing file",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "bar", "foo", "/tmp/file/does/not/exist"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"File does not exist in islandora_staging"}`,
+		},
+		// Parent Collection and PPI
+		{
+			name:   "Parent Collection not integer",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Parent Collection"},
+				{"foo", "bar", "foo", "NotAnInteger"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"Must be an integer"}`,
+		},
+		{
+			name:   "Parent Collection not found",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Parent Collection"},
+				{"foo", "bar", "foo", "0"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"Could not identify parent collection 0"}`,
+		},
+		{
+			name:   "Parent Collection exists",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Parent Collection"},
+				{"foo", "bar", "foo", "2"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{}`,
+		},
+		{
+			name:   "Invalid URL",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Catalog or ArchivesSpace URL"},
+				{"foo", "bar", "foo", "invalid-url"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"Invalid URL"}`,
+		},
+		{
+			name:   "Duplicate Upload ID",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Upload ID"},
+				{"Test Title 1", "bar", "foo", "123"},
+				{"Test Title 2", "bar", "foo", "123"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D3":"Duplicate upload ID"}`,
+		},
+		{
+			name:   "Invalid EDTF value",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Creation Date"},
+				{"foo", "bar", "foo", "1/2/2022"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"Invalid EDTF value"}`,
+		},
+		{
+			name:   "Invalid DOI",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "DOI"},
+				{"foo", "bar", "foo", "1.2.3.4"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"Invalid DOI"}`,
+		},
+		{
+			name:   "Unknown Parent ID",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Page/Item Parent ID", "Upload ID"},
+				{"foo", "bar", "foo", "123", "456"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"Unknown parent ID"}`,
+		},
+		{
+			name:   "Upload ID equals Parent ID",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Upload ID", "Page/Item Parent ID"},
+				{"foo", "bar", "foo", "123", "123"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"E2":"Upload ID and parent ID can not be equal"}`,
+		},
+		// Contributor
+		{
+			name:   "Contributor not in proper format",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Contributor"},
+				{"foo", "bar", "foo", `{"name":"bad-format"}`},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"Contributor name not in proper format"}`,
+		},
+		{
+			name:   "Paged Content need collection",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Parent Collection"},
+				{"foo", "Paged Content", "foo", ""},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"Paged content must have a parent collection"}`,
+		},
+		{
+			name:   "Page needs Parent ID",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Page/Item Parent ID"},
+				{"foo", "Page", "foo", ""},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"Pages must have a parent id"}`,
 		},
 	}
 

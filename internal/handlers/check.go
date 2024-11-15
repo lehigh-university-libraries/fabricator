@@ -74,15 +74,15 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 				if strInSlice(column, requiredFields) {
 					errors[i] = "Missing value"
 				}
-				if col == "Parent Collection" {
-					model := ColumnValue("ObjectModel", header, row)
+				if column == "Parent Collection" {
+					model := ColumnValue("Object Model", header, row)
 					if model == "Paged Content" {
 						errors[i] = "Paged content must have a parent collection"
 					}
 				}
 
-				if col == "Page/Item Parent ID" {
-					model := ColumnValue("ObjectModel", header, row)
+				if column == "Page/Item Parent ID" {
+					model := ColumnValue("Object Model", header, row)
 					if model == "Page" {
 						errors[i] = "Pages must have a parent id"
 					}
@@ -103,6 +103,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					id, err := strconv.Atoi(cell)
 					if err != nil {
 						errors[i] = "Must be an integer"
+						break
 					}
 					if column == "Parent Collection" {
 						url := fmt.Sprintf("https://preserve.lehigh.edu/node/%d?_format=json", id)
@@ -137,6 +138,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 				case "Page/Item Parent ID":
 					if _, ok := uploadIds[cell]; !ok {
 						errors[i] = "Unknown parent ID"
+						break
 					}
 					id := ColumnValue("Upload ID", header, row)
 					if cell == id {
@@ -151,6 +153,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					name := strings.Split(c.Name, ":")
 					if len(name) < 4 {
 						errors[i] = "Contributor name not in proper format"
+						break
 					}
 					if c.Status != "" || c.Email != "" || c.Institution != "" || c.Orcid != "" {
 						if name[2] != "person" {
