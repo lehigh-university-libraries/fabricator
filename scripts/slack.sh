@@ -13,13 +13,20 @@ if [ -v URL ]; then
 
   # extract sheet ID from https://docs.google.com/spreadsheets/d/foo/edit?gid=0#gid=0
   SHEET_ID=$(echo "$URL" | sed -n 's|.*/d/\(.*\)|\1|p')
-  echo $ACCESS_TOKEN > token
   TITLE=$(curl -s \
     -H "Authorization: Bearer $ACCESS_TOKEN" \
-    "https://sheets.googleapis.com/v4/spreadsheets/$SHEET_ID?fields=properties(title)" | jq .properties.title
+    "https://sheets.googleapis.com/v4/spreadsheets/$SHEET_ID?fields=properties(title)" | jq -r .properties.title
   )
   MESSAGE="${MESSAGE//__TITLE__/$TITLE}"
   MESSAGE="${MESSAGE//__URL__/$URL\/edit\?gid=0#gid=0}"
+
+  LINE_COUNT=$(curl -s \
+    "https://sheets.googleapis.com/v4/spreadsheets/$SHEET_ID/values/$RANGE" \
+    -H "Authorization: Bearer $ACCESS_TOKEN" | jq '.values | length')
+
+  LINE_COUNT=$(( LINE_COUNT - 1))
+  MESSAGE="${MESSAGE//__LINE_COUNT__/$LINE_COUNT}"
+
 fi
 
 escaped_message=$(echo "$MESSAGE" | jq -Rsa .)
