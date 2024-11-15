@@ -68,10 +68,10 @@ If the ingest template needs a new column added, these are the code changes that
 
 - Add the column to [the ingest template](https://docs.google.com/spreadsheets/d/1iB7GsnfvhQO_c6TzJb7qwCnItqju0PMC8mNWepYqsnU/edit#gid=0), making row one the human-friendly label
 - Make the necessary changes to [go-islandora](https://github.com/lehigh-university-libraries/go-islandora)
-  - Add the column label and machine name to [the sheets struct in go-islandora](https://github.com/lehigh-university-libraries/go-islandora/blob/965bd728379bf2a9aa0ddb1fb46ec05fda636d87/cmd/sheetsStructs.go#L61)
-  - generate the structs `go build && ./go-islandora generate sheets-structs --output=workbench.yaml`
+  - Add the column label and machine name to [the sheets slice in go-islandora](https://github.com/lehigh-university-libraries/go-islandora/blob/965bd728379bf2a9aa0ddb1fb46ec05fda636d87/cmd/sheetsStructs.go#L61)
+  - generate the openapi schema and structs `go build && ./go-islandora generate sheets-structs --output=workbench.yaml`
 - Make the necessary changes in this repo
-  - Update go.mod in this repo `go get -u github.com/lehigh-university-libraries/go-islandora@main`
+  - Update go.mod `go get -u github.com/lehigh-university-libraries/go-islandora@main`
   - Add any necessary [checks](./internal/handlers/check.go) and [tests](./internal/handlers/check_test.go)
 - Deploy the new image to the staging server
 ```
