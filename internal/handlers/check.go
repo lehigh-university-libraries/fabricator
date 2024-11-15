@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/lehigh-university-libraries/fabricator/internal/contributor"
@@ -45,15 +46,19 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	errors := map[string]string{}
 	if len(csvData) < 2 {
-		http.Error(w, "No rows in CSV to process", http.StatusBadRequest)
+		errorColumn := numberToExcelColumn(0)
+		errors[errorColumn] = "No rows in CSV to process"
+		csvData = append(csvData, []string{})
 	}
+
+	relators := validRelators()
 
 	header := csvData[0]
 	doiPattern := regexp.MustCompile(`^10\.\d{4,9}\/[-._;()/:A-Za-z0-9]+$`)
 	datePattern := regexp.MustCompile(`^\d{4}(-\d{2}(-\d{2})?)?$`)
 	hierarchyChecked := map[string]bool{}
-	errors := map[string]string{}
 	requiredFields := []string{
 		"Title",
 		"Object Model",
@@ -69,6 +74,19 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 				if strInSlice(column, requiredFields) {
 					errors[i] = "Missing value"
 				}
+				if col == "Parent Collection" {
+					model := ColumnValue("ObjectModel", header, row)
+					if model == "Paged Content" {
+						errors[i] = "Paged content must have a parent collection"
+					}
+				}
+
+				if col == "Page/Item Parent ID" {
+					model := ColumnValue("ObjectModel", header, row)
+					if model == "Page" {
+						errors[i] = "Pages must have a parent id"
+					}
+				}
 
 				continue
 			}
@@ -82,9 +100,15 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 				switch column {
 				// make sure these columns are integers
 				case "Parent Collection", "PPI":
-					_, err := strconv.Atoi(cell)
+					id, err := strconv.Atoi(cell)
 					if err != nil {
 						errors[i] = "Must be an integer"
+					}
+					if column == "Parent Collection" {
+						url := fmt.Sprintf("https://preserve.lehigh.edu/node/%d?_format=json", id)
+						if !checkURL(url) {
+							errors[i] = fmt.Sprintf("Could not identify parent collection %d", id)
+						}
 					}
 				// make sure these columns are valid URLs
 				case "Catalog or ArchivesSpace URL":
@@ -114,6 +138,10 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					if _, ok := uploadIds[cell]; !ok {
 						errors[i] = "Unknown parent ID"
 					}
+					id := ColumnValue("Upload ID", header, row)
+					if cell == id {
+						errors[i] = "Upload ID and parent ID can not be equal"
+					}
 				case "Contributor":
 					var c contributor.Contributor
 					err := json.Unmarshal([]byte(cell), &c)
@@ -129,6 +157,14 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 							errors[i] = "Additional fields can only be applied to people"
 						}
 					}
+					if !strInSlice(name[2], []string{"person", "corporate_body"}) {
+						errors[i] = fmt.Sprintf("Bad vocabulary ID for contributor: %s", name[2])
+					}
+					relator := fmt.Sprintf("%s:%s", name[0], name[1])
+					if !strInSlice(relator, relators) {
+						errors[i] = fmt.Sprintf("Invalid relator: %s", relator)
+					}
+
 					// make sure the file exists in the filesystem
 				case "File Path":
 					filename := strings.ReplaceAll(cell, `\`, `/`)
@@ -154,7 +190,10 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					if err != nil {
 						errors[i] = "Unable to get TGN"
 					}
-
+				case "Title":
+					if len(cell) > 255 {
+						errors[i] = "Title is longer than 255 characters"
+					}
 				}
 			}
 		}
@@ -275,4 +314,314 @@ func authRequest(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	return true
+}
+
+func IndexOf(value string, slice []string) int {
+	for i, v := range slice {
+		if v == value {
+			return i
+		}
+	}
+	return -1
+}
+
+func ColumnValue(value string, header, row []string) string {
+	i := IndexOf(value, header)
+	if i == -1 {
+		return ""
+	}
+
+	return row[i]
+}
+
+func checkURL(url string) bool {
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	resp, err := client.Head(url)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	return resp.StatusCode == http.StatusOK
+}
+
+func validRelators() []string {
+	// todo: fetch this from field_linked_agent config
+	return []string{
+		"relators:att",
+		"relators:abr",
+		"relators:act",
+		"relators:adp",
+		"relators:rcp",
+		"relators:anl",
+		"relators:anm",
+		"relators:ann",
+		"relators:apl",
+		"relators:ape",
+		"relators:app",
+		"relators:arc",
+		"relators:arr",
+		"relators:acp",
+		"relators:adi",
+		"relators:art",
+		"relators:ard",
+		"relators:asn",
+		"relators:asg",
+		"relators:auc",
+		"relators:aut",
+		"relators:aqt",
+		"relators:aft",
+		"relators:aud",
+		"relators:aui",
+		"relators:ato",
+		"relators:ant",
+		"relators:bnd",
+		"relators:bdd",
+		"relators:blw",
+		"relators:bkd",
+		"relators:bkp",
+		"relators:bjd",
+		"relators:bpd",
+		"relators:bsl",
+		"relators:brl",
+		"relators:brd",
+		"relators:cll",
+		"relators:ctg",
+		"relators:cas",
+		"relators:cns",
+		"relators:chr",
+		"relators:clb",
+		"relators:cng",
+		"relators:cli",
+		"relators:cor",
+		"relators:col",
+		"relators:clt",
+		"relators:clr",
+		"relators:cmm",
+		"relators:cwt",
+		"relators:com",
+		"relators:cpl",
+		"relators:cpt",
+		"relators:cpe",
+		"relators:cmp",
+		"relators:cmt",
+		"relators:ccp",
+		"relators:cnd",
+		"relators:con",
+		"relators:csl",
+		"relators:csp",
+		"relators:cos",
+		"relators:cot",
+		"relators:coe",
+		"relators:cts",
+		"relators:ctt",
+		"relators:cte",
+		"relators:ctr",
+		"relators:ctb",
+		"relators:cpc",
+		"relators:cph",
+		"relators:crr",
+		"relators:crp",
+		"relators:cst",
+		"relators:cou",
+		"relators:crt",
+		"relators:cov",
+		"relators:cre",
+		"relators:cur",
+		"relators:dnc",
+		"relators:dtc",
+		"relators:dtm",
+		"relators:dte",
+		"relators:dto",
+		"relators:dfd",
+		"relators:dft",
+		"relators:dfe",
+		"relators:dgg",
+		"relators:dgs",
+		"relators:dln",
+		"relators:dpc",
+		"relators:dpt",
+		"relators:dsr",
+		"relators:drt",
+		"relators:dis",
+		"relators:dbp",
+		"relators:dst",
+		"relators:dnr",
+		"relators:drm",
+		"relators:dub",
+		"relators:edt",
+		"relators:edc",
+		"relators:edm",
+		"relators:edd",
+		"relators:elg",
+		"relators:elt",
+		"relators:enj",
+		"relators:eng",
+		"relators:egr",
+		"relators:etr",
+		"relators:evp",
+		"relators:exp",
+		"relators:fac",
+		"relators:fld",
+		"relators:fmd",
+		"relators:fds",
+		"relators:flm",
+		"relators:fmp",
+		"relators:fmk",
+		"relators:fpy",
+		"relators:frg",
+		"relators:fmo",
+		"relators:fnd",
+		"relators:gis",
+		"relators:grt",
+		"relators:hnr",
+		"relators:hst",
+		"relators:his",
+		"relators:ilu",
+		"relators:ill",
+		"relators:ins",
+		"relators:itr",
+		"relators:ive",
+		"relators:ivr",
+		"relators:inv",
+		"relators:isb",
+		"relators:jud",
+		"relators:jug",
+		"relators:lbr",
+		"relators:ldr",
+		"relators:lsa",
+		"relators:led",
+		"relators:len",
+		"relators:lil",
+		"relators:lit",
+		"relators:lie",
+		"relators:lel",
+		"relators:let",
+		"relators:lee",
+		"relators:lbt",
+		"relators:lse",
+		"relators:lso",
+		"relators:lgd",
+		"relators:ltg",
+		"relators:lyr",
+		"relators:mfp",
+		"relators:mfr",
+		"relators:mrb",
+		"relators:mrk",
+		"relators:med",
+		"relators:mdc",
+		"relators:mte",
+		"relators:mtk",
+		"relators:mod",
+		"relators:mon",
+		"relators:mcp",
+		"relators:msd",
+		"relators:mus",
+		"relators:nrt",
+		"relators:osp",
+		"relators:opn",
+		"relators:orm",
+		"relators:org",
+		"relators:oth",
+		"relators:own",
+		"relators:pan",
+		"relators:ppm",
+		"relators:pta",
+		"relators:pth",
+		"relators:pat",
+		"relators:prf",
+		"relators:pma",
+		"relators:pht",
+		"relators:ptf",
+		"relators:ptt",
+		"relators:pte",
+		"relators:plt",
+		"relators:pra",
+		"relators:pre",
+		"relators:prt",
+		"relators:pop",
+		"relators:prm",
+		"relators:prc",
+		"relators:pro",
+		"relators:prn",
+		"relators:prs",
+		"relators:pmn",
+		"relators:prd",
+		"relators:prp",
+		"relators:prg",
+		"relators:pdr",
+		"relators:pfr",
+		"relators:prv",
+		"relators:pup",
+		"relators:pbd",
+		"relators:ppt",
+		"relators:rdd",
+		"relators:rpc",
+		"relators:rce",
+		"relators:rcd",
+		"relators:red",
+		"relators:ren",
+		"relators:rpt",
+		"relators:rps",
+		"relators:rth",
+		"relators:rtm",
+		"relators:res",
+		"relators:rsp",
+		"relators:rst",
+		"relators:rse",
+		"relators:rpy",
+		"relators:rsg",
+		"relators:rsr",
+		"relators:rev",
+		"relators:rbr",
+		"relators:sce",
+		"relators:sad",
+		"relators:aus",
+		"relators:scr",
+		"relators:scl",
+		"relators:spy",
+		"relators:sec",
+		"relators:sll",
+		"relators:std",
+		"relators:stg",
+		"relators:sgn",
+		"relators:sng",
+		"relators:sds",
+		"relators:spk",
+		"relators:spn",
+		"relators:sgd",
+		"relators:stm",
+		"relators:stn",
+		"relators:str",
+		"relators:stl",
+		"relators:sht",
+		"relators:srv",
+		"relators:tch",
+		"relators:tcd",
+		"relators:tld",
+		"relators:tlp",
+		"relators:ths",
+		"relators:trc",
+		"relators:trl",
+		"relators:tyd",
+		"relators:tyg",
+		"relators:uvp",
+		"relators:vdg",
+		"relators:voc",
+		"relators:vac",
+		"relators:wit",
+		"relators:wde",
+		"relators:wdc",
+		"relators:wam",
+		"relators:wac",
+		"relators:wal",
+		"relators:wat",
+		"relators:win",
+		"relators:wpr",
+		"relators:wst",
+		"label:department",
+	}
 }
