@@ -29,6 +29,7 @@ while [[ "$attempt" -lt "$max_attempts" ]]; do
     "https://sheets.googleapis.com/v4/spreadsheets/$SHEET_ID?fields=properties(title)")
   
   if [ "$GSHEET_STATUS" -lt 500 ] && [ "$TITLE_STATUS" -lt 500 ]; then
+    jq -r .properties.title response.json > title.txt
     break
   fi
 
@@ -44,6 +45,11 @@ for file in "${files[@]}"; do
     exit 1
   elif [[ ! -s "$file" ]]; then
     echo "$file is empty."
+    exit 1
+  fi
+  contents=$(cat $file)
+  if [ "$contents" = "null" ]; then
+    echo "$file is null."
     exit 1
   fi
 done
