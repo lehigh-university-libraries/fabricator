@@ -47,7 +47,7 @@ for file in "${files[@]}"; do
     echo "$file is empty."
     exit 1
   fi
-  contents=$(cat $file)
+  contents=$(cat "$file")
   if [ "$contents" = "null" ]; then
     echo "$file is null."
     exit 1

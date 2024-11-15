@@ -73,7 +73,7 @@ jobs:
       - name: Notify Slack on Start
         run: ./scripts/slack.sh
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_TEST_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           MESSAGE: |
             ${{ github.actor }} started workbench ingest for __TITLE__
 
@@ -114,14 +114,14 @@ jobs:
         if: ${{ success() }}
         run: ./scripts/slack.sh
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_TEST_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           MESSAGE: "✅ Workbench job succeeded!"
 
       - name: Notify Slack on Failure
         if: ${{ failure() }}
         run: ./scripts/slack.sh
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_TEST_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           MESSAGE: "🚨 Workbench job failed!"
 
       - name: cleanup
