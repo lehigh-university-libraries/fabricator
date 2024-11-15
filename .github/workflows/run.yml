@@ -87,6 +87,12 @@ jobs:
         env:
           ISLANDORA_WORKBENCH_PASSWORD: ${{ secrets.ISLANDORA_WORKBENCH_PASSWORD }}
 
+      - name: Attach rollback
+        uses: actions/upload-artifact@v4
+        with:
+          name: rollback.csv
+          path: islandora_workbench/input_data/rollback.csv
+
       - name: Notify Slack on Success
         if: ${{ success() }}
         run: ./scripts/slack.sh
