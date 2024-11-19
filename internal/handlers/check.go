@@ -257,7 +257,7 @@ func fileExists(filename string) bool {
 
 	mode := info.Mode().Perm()
 	// Check if the file is globally readable
-	return mode&0404 != 0, nil
+	return mode&0404 != 0
 }
 
 func authRequest(w http.ResponseWriter, r *http.Request) bool {
