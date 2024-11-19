@@ -10,6 +10,28 @@ import (
 )
 
 func TestCheckMyWork(t *testing.T) {
+	files := []struct {
+		name         string
+		permissions  os.FileMode
+		expectAccess bool
+	}{
+		{"/tmp/test_readable.txt", 0644, true},   // Readable globally
+		{"/tmp/test_writable.txt", 0666, true},  // Writable globally
+		{"/tmp/test_private.txt", 0600, false},  // Not accessible globally
+	}
+
+	// Create test files
+	for _, file := range files {
+		if err := os.WriteFile(file.name, []byte("test content"), file.permissions); err != nil {
+			t.Fatalf("Failed to create test file %s: %v", file.name, err)
+		}
+	}
+	defer func() {
+		for _, file := range files {
+			_ = os.Remove(file.name)
+		}
+	}()
+
 	tests := []struct {
 		name       string
 		method     string
@@ -103,6 +125,16 @@ func TestCheckMyWork(t *testing.T) {
 			response:   `{"D2":"File does not exist in islandora_staging"}`,
 		},
 		{
+			name:   "Unreadable file",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "bar", "foo", "/tmp/file/does/not/exist"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"File does not exist in islandora_staging"}`,
+		},
+		{
 			name:   "Missing file",
 			method: http.MethodPost,
 			body: [][]string{
@@ -111,6 +143,37 @@ func TestCheckMyWork(t *testing.T) {
 			},
 			statusCode: http.StatusOK,
 			response:   `{"D2":"Missing source file"}`,
+		},
+		{
+			name:   "OK file",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "Image", "foo", "/tmp/test_readable.txt"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{}`,
+		},
+		{
+			name:   "OK file (rw)",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "Image", "foo", "/tmp/test_writable.txt"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{}`,
+		},
+
+		{
+			name:   "Unreadable file",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "Image", "foo", "/tmp/test_private.txt"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"File does not exist in islandora_staging"}`,
 		},
 		{
 			name:   "Missing file OK",
