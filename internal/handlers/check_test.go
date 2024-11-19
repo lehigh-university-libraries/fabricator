@@ -95,6 +95,16 @@ func TestCheckMyWork(t *testing.T) {
 			response:   `{"A2":"Missing value"}`,
 		},
 		{
+			name:   "Missing resource type",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Resource Type"},
+				{"foo", "bar", "foo", ""},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"Missing value"}`,
+		},
+		{
 			name:   "Missing model",
 			method: http.MethodPost,
 			body: [][]string{
