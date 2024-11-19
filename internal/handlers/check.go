@@ -178,9 +178,13 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					// make sure the file exists in the filesystem
 				case "File Path", "Supplemental File":
 					filename := strings.ReplaceAll(cell, `\`, `/`)
-					filename = strings.TrimLeft(filename, "/")
-					if len(filename) > 3 && filename[0:3] != "mnt" {
-						filename = fmt.Sprintf("/mnt/islandora_staging/%s", filename)
+					// we're testing with /tmp files
+					if len(filename) < 6 || filename[0:5] != "/tmp/" {
+						// but need to make sure we're mapping /mnt/islandora_staging into /data in docker
+						filename = strings.TrimLeft(filename, "/")
+						if len(filename) > 3 && filename[0:3] != "mnt" {
+							filename = fmt.Sprintf("/mnt/islandora_staging/%s", filename)
+						}
 					}
 
 					filename = strings.ReplaceAll(filename, "/mnt/islandora_staging", "/data")
@@ -251,7 +255,13 @@ func fileExists(filename string) bool {
 	if os.IsNotExist(err) {
 		return false
 	}
-	return !info.IsDir()
+	if !info.Mode().IsRegular() {
+		return false
+	}
+
+	mode := info.Mode().Perm()
+	// Check if the file is globally readable
+	return mode&0004 != 0
 }
 
 func authRequest(w http.ResponseWriter, r *http.Request) bool {
