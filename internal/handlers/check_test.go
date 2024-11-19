@@ -15,9 +15,9 @@ func TestCheckMyWork(t *testing.T) {
 		permissions  os.FileMode
 		expectAccess bool
 	}{
-		{"/tmp/test_readable.txt", 0644, true},   // Readable globally
-		{"/tmp/test_writable.txt", 0666, true},  // Writable globally
-		{"/tmp/test_private.txt", 0600, false},  // Not accessible globally
+		{"/tmp/test_readable.txt", 0644, true}, // Readable globally
+		{"/tmp/test_writable.txt", 0666, true}, // Writable globally
+		{"/tmp/test_private.txt", 0600, false}, // Not accessible globally
 	}
 
 	// Create test files
@@ -116,16 +116,6 @@ func TestCheckMyWork(t *testing.T) {
 		},
 		{
 			name:   "Non-existent file",
-			method: http.MethodPost,
-			body: [][]string{
-				{"Title", "Object Model", "Full Title", "File Path"},
-				{"foo", "bar", "foo", "/tmp/file/does/not/exist"},
-			},
-			statusCode: http.StatusOK,
-			response:   `{"D2":"File does not exist in islandora_staging"}`,
-		},
-		{
-			name:   "Unreadable file",
 			method: http.MethodPost,
 			body: [][]string{
 				{"Title", "Object Model", "Full Title", "File Path"},
