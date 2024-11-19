@@ -29,11 +29,18 @@ done
 STATUS=$(curl -v \
   -w '%{http_code}' \
   -H "X-Secret: $SHARED_SECRET" \
+  -o check.json \
   -XPOST \
   --upload-file csv.json \
   http://localhost:8080/workbench/check)
-if [ "${STATUS}" -gt 299 ] || [ "${STATUS}" -lt 200 ]; then
+if [ "${STATUS}" != 200 ]; then
   echo "Check my work failed"
+  exit 1
+fi
+
+if [[ "$(jq '. | length' check.json)" -gt 0 ]]; then
+  echo "Check my work failed"
+  jq . check.json
   exit 1
 fi
 

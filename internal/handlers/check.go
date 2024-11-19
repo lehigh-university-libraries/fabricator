@@ -179,16 +179,15 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					// make sure the file exists in the filesystem
 				case "File Path", "Supplemental File":
 					filename := strings.ReplaceAll(cell, `\`, `/`)
-					// we're testing with /tmp files
-					if len(filename) < 6 || filename[0:5] != "/tmp/" {
-						// but need to make sure we're mapping /mnt/islandora_staging into /data in docker
-						filename = strings.TrimLeft(filename, "/")
-						if len(filename) > 3 && filename[0:3] != "mnt" {
-							filename = fmt.Sprintf("/mnt/islandora_staging/%s", filename)
-						}
+
+					// todo: only have fabricator run in docker
+					// and not in the github action job, too
+					filename = strings.TrimLeft(filename, "/")
+					if len(filename) > 3 && filename[0:3] != "mnt" {
+						filename = fmt.Sprintf("/mnt/islandora_staging/%s", filename)
 					}
 
-					filename = strings.ReplaceAll(filename, "/mnt/islandora_staging", "/data")
+					filename = strings.ReplaceAll(filename, "/mnt/islandora_staging", os.Getenv("FABRICATOR_DATA_MOUNT"))
 					if !fileExists(filename) {
 						errors[i] = "File does not exist in islandora_staging"
 					}
