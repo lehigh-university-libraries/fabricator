@@ -75,11 +75,8 @@ func TransformCsv(w http.ResponseWriter, r *http.Request) {
 			slog.Error("Failed to create file", "file", csvFile, "err", err)
 			os.Exit(1)
 		}
-		defer aFile.Close()
 
 		aWriter := csv.NewWriter(aFile)
-		defer aWriter.Flush()
-
 		for _, row := range linkedAgents {
 			if err := aWriter.Write(row); err != nil {
 				slog.Error("Failed to write record to CSV", "err", err)
@@ -87,6 +84,8 @@ func TransformCsv(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+		aWriter.Flush()
+		aFile.Close()
 	}
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", "attachment; filename=files.zip")
