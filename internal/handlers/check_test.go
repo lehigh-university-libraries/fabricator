@@ -10,6 +10,7 @@ import (
 )
 
 func TestCheckMyWork(t *testing.T) {
+	os.Setenv("FABRICATOR_DATA_MOUNT", "/tmp")
 	files := []struct {
 		name         string
 		permissions  os.FileMode
@@ -149,7 +150,7 @@ func TestCheckMyWork(t *testing.T) {
 			method: http.MethodPost,
 			body: [][]string{
 				{"Title", "Object Model", "Full Title", "File Path"},
-				{"foo", "Image", "foo", "/tmp/test_readable.txt"},
+				{"foo", "Image", "foo", "test_readable.txt"},
 			},
 			statusCode: http.StatusOK,
 			response:   `{}`,
@@ -159,7 +160,7 @@ func TestCheckMyWork(t *testing.T) {
 			method: http.MethodPost,
 			body: [][]string{
 				{"Title", "Object Model", "Full Title", "File Path"},
-				{"foo", "Image", "foo", "/tmp/test_writable.txt"},
+				{"foo", "Image", "foo", "test_writable.txt"},
 			},
 			statusCode: http.StatusOK,
 			response:   `{}`,
@@ -170,7 +171,7 @@ func TestCheckMyWork(t *testing.T) {
 			method: http.MethodPost,
 			body: [][]string{
 				{"Title", "Object Model", "Full Title", "File Path"},
-				{"foo", "Image", "foo", "/tmp/test_private.txt"},
+				{"foo", "Image", "foo", "test_private.txt"},
 			},
 			statusCode: http.StatusOK,
 			response:   `{"D2":"File does not exist in islandora_staging"}`,
