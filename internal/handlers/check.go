@@ -181,7 +181,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					filename := strings.ReplaceAll(cell, `\`, `/`)
 
 					// todo: only have fabricator run in docker
-					// and not in this job, too
+					// and not in the github action job, too
 					filename = strings.TrimLeft(filename, "/")
 					if len(filename) > 3 && filename[0:3] != "mnt" {
 						filename = fmt.Sprintf("/mnt/islandora_staging/%s", filename)
