@@ -1,5 +1,5 @@
 task: create
-host: https://preserve.lehigh.edu
+host: https://islandora-prod.lib.lehigh.edu
 username: workbench
 allow_adding_terms: true
 input_csv: target.csv
