@@ -18,6 +18,7 @@ jobs:
     timeout-minutes: 4320
     env:
       SHARED_SECRET: abc123
+      FABRICATOR_DATA_MOUNT: /mnt/islandora_staging
     runs-on: self-hosted
     permissions:
       contents: read
