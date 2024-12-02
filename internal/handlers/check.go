@@ -63,7 +63,6 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 		"Title",
 		"Object Model",
 		"Full Title",
-		"Resource Type",
 	}
 	uploadIds := map[string]bool{}
 	for rowIndex, row := range csvData[1:] {
