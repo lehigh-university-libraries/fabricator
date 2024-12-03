@@ -14,17 +14,6 @@ else
   exit 1
 fi
 
-nohup ./fabricator &
-echo $! > fabricator_pid.txt
-while true; do
-  STATUS=$(curl -s -w '%{http_code}' -o /dev/null http://localhost:8080/healthcheck)
-  if [ "${STATUS}" -eq 200 ]; then
-    break
-  fi
-  echo "Waiting for fabricator to come online"
-  sleep 1
-done
-
 # make sure the sheet passes the check my work
 STATUS=$(curl -v \
   -w '%{http_code}' \
@@ -32,7 +21,7 @@ STATUS=$(curl -v \
   -o check.json \
   -XPOST \
   --upload-file csv.json \
-  http://localhost:8080/workbench/check)
+  https://islandora-stage.lib.lehigh.edu/workbench/check)
 if [ "${STATUS}" != 200 ]; then
   echo "Check my work failed"
   exit 1
@@ -51,7 +40,7 @@ STATUS=$(curl -v \
   -XPOST \
   -o target.zip \
   --upload-file source.csv \
-  http://localhost:8080/workbench/transform)
+  https://islandora-stage.lib.lehigh.edu/workbench/transform)
 if [ "${STATUS}" -gt 299 ] || [ "${STATUS}" -lt 200 ]; then
   echo "CSV transform failed"
   exit 1

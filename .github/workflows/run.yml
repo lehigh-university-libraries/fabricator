@@ -17,7 +17,7 @@ jobs:
     # 3d max execution time
     timeout-minutes: 4320
     env:
-      SHARED_SECRET: abc123
+      SHARED_SECRET: ${{ secrets.FABRICATOR_SHARED_SECRET }}
       FABRICATOR_DATA_MOUNT: /mnt/islandora_staging
     runs-on: self-hosted
     permissions:
@@ -34,16 +34,6 @@ jobs:
         env:
           URL: ${{ github.event.inputs.url }}
           RANGE: ${{ github.event.inputs.range }}
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '>=1.23.3'
-
-      - name: Install dependencies
-        run: go get .
-
-      - name: Build
-        run: go build -o fabricator
 
       - id: 'auth'
         name: 'Authenticate to Google Cloud'
@@ -82,7 +72,7 @@ jobs:
 
             Google Sheet: __URL__
 
-            Workbench execution log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ steps.get-job-id.outputs.job_id }}#step:13:1
+            Workbench execution log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ steps.get-job-id.outputs.job_id }}#step:10:1
           URL: ${{ github.event.inputs.url }}
 
       - name: transform google sheet
@@ -124,7 +114,3 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           MESSAGE: "🚨 Workbench job failed!"
-
-      - name: cleanup
-        if: ${{ always() }}
-        run: ./scripts/cleanup.sh
