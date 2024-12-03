@@ -94,6 +94,12 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 						errors[i] = "Missing source file"
 					}
 				}
+				if column == "Resource Type" {
+					model := ColumnValue("Object Model", header, row)
+					if model != "Page" {
+						errors[i] = "Must have a resource type"
+					}
+				}
 
 				continue
 			}
