@@ -6,7 +6,7 @@ GSHEET=$(cat gsheet.json)
 
 if echo "$GSHEET" | jq -e .values >/dev/null; then
   # save as a CSV
-  echo "$GSHEET" | jq .values | jq -r '(map(keys) | add | unique) as $cols | map(. as $row | $cols | map($row[.])) as $rows | $cols, $rows[] | @csv' | tail -n +2 > source.csv
+  echo "$GSHEET" | jq .values | jq -r '(map(keys) | add | unique) as $cols | map(. as $row | $cols | map($row[.])) as $rows | $cols, $rows[] | [.[]|rtrimstr("\r")|ltrimstr("\r")|rtrimstr("\n")|ltrimstr("\n")|rtrimstr(" ")|ltrimstr(" ")] | @csv' | tail -n +2 > source.csv
   # and also as JSON in a format check my work expects
   echo "$GSHEET" | jq -r '.values | map(map(tostring))' > csv.json
 else
