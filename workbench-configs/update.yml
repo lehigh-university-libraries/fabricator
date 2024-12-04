@@ -1,0 +1,10 @@
+task: update
+host: https://islandora-prod.lib.lehigh.edu
+username: workbench
+allow_adding_terms: true
+input_csv: target.update.csv
+log_file_path: logs/update.log
+log_file_mode: w
+allow_missing_files: true
+additional_files:
+ - supplemental_file: 151326

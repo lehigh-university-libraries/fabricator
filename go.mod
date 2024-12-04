@@ -4,7 +4,7 @@ go 1.22.2
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
-	github.com/lehigh-university-libraries/go-islandora v0.0.0-20241115202445-965bd728379b
+	github.com/lehigh-university-libraries/go-islandora v0.0.0-20241204195121-b4515e46e282
 	github.com/lestrrat-go/jwx v1.2.29
 	github.com/sfomuseum/go-edtf v1.1.1
 )

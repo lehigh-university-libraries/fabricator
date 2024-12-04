@@ -21,8 +21,13 @@ if [ -f input_data/target.agents.csv ]; then
   grep ERROR logs/agents.log && exit 1 || echo "No errors"
 fi
 
-# run the ingest
-python3 workbench --config configs/create.yml
+if [ -f input_data/target.update.csv ]; then
+  python3 workbench --config configs/update.yml
+  grep ERROR logs/update.log && exit 1 || echo "No errors"
+fi
 
-# fail the job if workbench logged any errors
-grep ERROR logs/items.log && exit 1 || echo "No errors"
+if [ -f input_data/target.csv ]; then
+  python3 workbench --config configs/create.yml
+  grep ERROR logs/items.log && exit 1 || echo "No errors"
+fi
+
