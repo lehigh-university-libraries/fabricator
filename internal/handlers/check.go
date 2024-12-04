@@ -71,7 +71,8 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 			c := numberToExcelColumn(colIndex)
 			i := c + strconv.Itoa(rowIndex+2)
 			if col == "" {
-				if strInSlice(column, requiredFields) {
+				// require fields on create
+				if strInSlice(column, requiredFields) && ColumnValue("Node ID", header, row) == "" {
 					errors[i] = "Missing value"
 				}
 				if column == "Parent Collection" {
