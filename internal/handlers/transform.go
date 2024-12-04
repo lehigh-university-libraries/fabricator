@@ -21,7 +21,6 @@ import (
 )
 
 func TransformCsv(w http.ResponseWriter, r *http.Request) {
-	target := "/tmp/target.csv"
 	headers, rows, linkedAgents, err := readCSVWithJSONTags(r)
 	if err != nil {
 		slog.Error("Failed to read CSV", "err", err)
@@ -29,18 +28,21 @@ func TransformCsv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	firstRow := make([]string, 0, len(headers))
+	for header := range headers {
+		firstRow = append(firstRow, header)
+	}
+	target := "/tmp/target.csv"
+	if strInSlice("node_id", firstRow) {
+		target = "/tmp/target.update.csv"
+	}
 	file, err := os.Create(target)
 	if err != nil {
 		slog.Error("Failed to create file", "err", err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
-
 	writer := csv.NewWriter(file)
-	firstRow := make([]string, 0, len(headers))
-	for header := range headers {
-		firstRow = append(firstRow, header)
-	}
 
 	// finally, write the header to the CSV
 	if err := writer.Write(firstRow); err != nil {
@@ -224,7 +226,7 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 								if !re.MatchString(str) {
 									return nil, nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
 								}
-							case "field_weight":
+							case "field_weight", "node_id":
 								_, err := strconv.Atoi(str)
 								if err != nil {
 									return nil, nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)

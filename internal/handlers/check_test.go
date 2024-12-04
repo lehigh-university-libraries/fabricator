@@ -330,6 +330,16 @@ func TestCheckMyWork(t *testing.T) {
 			statusCode: http.StatusOK,
 			response:   `{"D2":"Pages must have a parent id"}`,
 		},
+		{
+			name:   "Do not require title/model on updates",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Node ID"},
+				{"", "", "", "2"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{}`,
+		},
 	}
 
 	sharedSecret := "foo"
