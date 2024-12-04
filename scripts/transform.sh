@@ -51,7 +51,11 @@ rm target.zip
 
 # make sure source and target CSVs line count match
 SOURCE=$(wc -l < source.csv)
-TARGET=$(wc -l < target.csv)
+TARGET_FILE="target.csv"
+if [ -f target.update.csv ]; then
+  TARGET_FILE="target.update.csv"
+fi
+TARGET=$(wc -l < "$TARGET_FILE")
 if [ "$SOURCE" != "$TARGET" ]; then
   echo "source and target CSVs don't match ($SOURCE != $TARGET)"
   exit 1
@@ -63,9 +67,12 @@ if [ "$TARGET" -lt 2 ]; then
   exit 1
 fi
 
-# and some required headers exist
-header=$(head -1 target.csv)
+# ensure some required headers exist
 required_fields=("field_model" "title" "field_full_title" "id")
+if [ -f target.update.csv ]; then
+  required_fields=("node_id")
+fi
+header=$(head -1 "$TARGET_FILE")
 missing_fields=()
 for field in "${required_fields[@]}"; do
   if ! grep -q "$field" <<< "$header"; then
