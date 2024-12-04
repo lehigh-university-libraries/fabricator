@@ -2,6 +2,11 @@
 
 set -eou pipefail
 
+if [ ! -f islandora_workbench/input_data/rollback.csv ]; then
+  echo "rollback.csv does not exist"
+  exit 0
+fi
+
 regex='^(https:\/\/docs\.google\.com\/spreadsheets\/d\/[a-zA-Z0-9_-]+)'
 if [[ "$URL" =~ $regex ]]; then
   URL="${BASH_REMATCH[1]}"
