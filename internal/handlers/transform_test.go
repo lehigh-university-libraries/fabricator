@@ -129,15 +129,3 @@ func equalStringSlices(a, b []string) bool {
 	}
 	return true
 }
-
-func equalLinkedAgents(a, b [][]string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !equalStringSlices(a[i], b[i]) {
-			return false
-		}
-	}
-	return true
-}
