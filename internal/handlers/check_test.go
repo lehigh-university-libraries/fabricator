@@ -335,7 +335,7 @@ func TestCheckMyWork(t *testing.T) {
 			method: http.MethodPost,
 			body: [][]string{
 				{"Title", "Object Model", "Full Title", "Node ID"},
-				{"", "", "", "foo"},
+				{"", "", "", "2"},
 			},
 			statusCode: http.StatusOK,
 			response:   `{}`,

@@ -113,7 +113,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 
 				switch column {
 				// make sure these columns are integers
-				case "Parent Collection", "PPI":
+				case "Parent Collection", "PPI", "Node ID":
 					id, err := strconv.Atoi(cell)
 					if err != nil {
 						errors[i] = "Must be an integer"
@@ -125,7 +125,13 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 							errors[i] = fmt.Sprintf("Could not identify parent collection %d", id)
 						}
 					}
-				// make sure these columns are valid URLs
+					if column == "Node ID" {
+						url := fmt.Sprintf("https://preserve.lehigh.edu/node/%d?_format=json", id)
+						if !checkURL(url) {
+							errors[i] = fmt.Sprintf("Could not find node ID %d", id)
+						}
+					}
+					// make sure these columns are valid URLs
 				case "Catalog or ArchivesSpace URL":
 					parsedURL, err := url.ParseRequestURI(cell)
 					if err != nil || parsedURL.Scheme == "" && parsedURL.Host == "" {
