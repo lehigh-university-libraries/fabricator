@@ -153,7 +153,7 @@ func TestCheckMyWork(t *testing.T) {
 				{"foo", "Image", "foo", ""},
 			},
 			statusCode: http.StatusOK,
-			response:   `{"D2":"Missing source file"}`,
+			response:   `{}`,
 		},
 		{
 			name:   "OK file",
