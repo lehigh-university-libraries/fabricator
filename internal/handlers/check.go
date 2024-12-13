@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -67,25 +68,23 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 	urlCheckCache := sync.Map{}
 
 	checkURL := func(url string) bool {
-		// Check if the URL is already in the cache
 		if result, ok := urlCheckCache.Load(url); ok {
 			return result.(bool)
 		}
 
-		// Perform the actual URL check
 		client := &http.Client{
 			Timeout: 10 * time.Second,
 		}
 
 		resp, err := client.Head(url)
 		if err != nil {
-			urlCheckCache.Store(url, false) // Cache the result
+			urlCheckCache.Store(url, false)
 			return false
 		}
 		defer resp.Body.Close()
 
 		result := resp.StatusCode == http.StatusOK
-		urlCheckCache.Store(url, result) // Cache the result
+		urlCheckCache.Store(url, result)
 		return result
 	}
 
