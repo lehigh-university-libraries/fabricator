@@ -65,7 +65,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 		"Object Model",
 		"Full Title",
 	}
-	urlCheckCache := sync.Map{}
+	urlCheckCache := &sync.Map{}
 	uploadIds := map[string]bool{}
 	for rowIndex, row := range csvData[1:] {
 		for colIndex, col := range row {
