@@ -64,6 +64,31 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 		"Object Model",
 		"Full Title",
 	}
+	urlCheckCache := sync.Map{}
+
+	checkURL := func(url string) bool {
+		// Check if the URL is already in the cache
+		if result, ok := urlCheckCache.Load(url); ok {
+			return result.(bool)
+		}
+
+		// Perform the actual URL check
+		client := &http.Client{
+			Timeout: 10 * time.Second,
+		}
+
+		resp, err := client.Head(url)
+		if err != nil {
+			urlCheckCache.Store(url, false) // Cache the result
+			return false
+		}
+		defer resp.Body.Close()
+
+		result := resp.StatusCode == http.StatusOK
+		urlCheckCache.Store(url, result) // Cache the result
+		return result
+	}
+
 	uploadIds := map[string]bool{}
 	for rowIndex, row := range csvData[1:] {
 		for colIndex, col := range row {
@@ -358,20 +383,6 @@ func ColumnValue(value string, header, row []string) string {
 	}
 
 	return row[i]
-}
-
-func checkURL(url string) bool {
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-
-	resp, err := client.Head(url)
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-
-	return resp.StatusCode == http.StatusOK
 }
 
 func validRelators() []string {
