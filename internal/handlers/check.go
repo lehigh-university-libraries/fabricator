@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -64,6 +65,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 		"Object Model",
 		"Full Title",
 	}
+	urlCheckCache := &sync.Map{}
 	uploadIds := map[string]bool{}
 	for rowIndex, row := range csvData[1:] {
 		for colIndex, col := range row {
@@ -115,13 +117,13 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					}
 					if column == "Parent Collection" {
 						url := fmt.Sprintf("https://preserve.lehigh.edu/node/%d?_format=json", id)
-						if !checkURL(url) {
+						if !checkURL(url, urlCheckCache) {
 							errors[i] = fmt.Sprintf("Could not identify parent collection %d", id)
 						}
 					}
 					if column == "Node ID" {
 						url := fmt.Sprintf("https://preserve.lehigh.edu/node/%d?_format=json", id)
-						if !checkURL(url) {
+						if !checkURL(url, urlCheckCache) {
 							errors[i] = fmt.Sprintf("Could not find node ID %d", id)
 						}
 					}
@@ -360,18 +362,25 @@ func ColumnValue(value string, header, row []string) string {
 	return row[i]
 }
 
-func checkURL(url string) bool {
+func checkURL(url string, cache *sync.Map) bool {
+	if result, ok := cache.Load(url); ok {
+		return result.(bool)
+	}
+
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
 
 	resp, err := client.Head(url)
 	if err != nil {
+		cache.Store(url, false)
 		return false
 	}
 	defer resp.Body.Close()
 
-	return resp.StatusCode == http.StatusOK
+	result := resp.StatusCode == http.StatusOK
+	cache.Store(url, result)
+	return result
 }
 
 func validRelators() []string {
