@@ -35,15 +35,15 @@ jobs:
           URL: ${{ github.event.inputs.url }}
           RANGE: ${{ github.event.inputs.range }}
 
-      - id: 'auth'
-        name: 'Authenticate to Google Cloud'
+      - id: 'auth_ro'
+        name: 'Authenticate to Google Cloud (read only)'
         uses: 'google-github-actions/auth@v1'
         with:
           workload_identity_provider: ${{ secrets.WORKBENCH_GCLOUD_OIDC_POOL }}
           create_credentials_file: true
           service_account: ${{ secrets.WORKBENCH_GSA }}
           token_format: 'access_token'
-          access_token_scopes: "https://www.googleapis.com/auth/spreadsheets"
+          access_token_scopes: "https://www.googleapis.com/auth/spreadsheets.readonly"
 
       - name: Get Job ID from GH API
         id: get-job-id
@@ -59,7 +59,7 @@ jobs:
         env:
           URL: ${{ github.event.inputs.url }}
           RANGE: ${{ github.event.inputs.range }}
-          ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          ACCESS_TOKEN: ${{ steps.auth_ro.outputs.access_token }}
 
       - name: Notify Slack on Start
         run: ./scripts/slack.sh
@@ -80,7 +80,7 @@ jobs:
         env:
           URL: ${{ github.event.inputs.url }}
           RANGE: ${{ github.event.inputs.range }}
-          ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          ACCESS_TOKEN: ${{ steps.auth_ro.outputs.access_token }}
 
       - name: Checkout workbench
         uses: actions/checkout@v4
@@ -95,11 +95,21 @@ jobs:
         env:
           ISLANDORA_WORKBENCH_PASSWORD: ${{ secrets.ISLANDORA_WORKBENCH_PASSWORD }}
 
+      - id: 'auth_rw'
+        name: 'Authenticate to Google Cloud (read+write)'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          workload_identity_provider: ${{ secrets.WORKBENCH_GCLOUD_OIDC_POOL }}
+          create_credentials_file: true
+          service_account: ${{ secrets.WORKBENCH_GSA }}
+          token_format: 'access_token'
+          access_token_scopes: "https://www.googleapis.com/auth/spreadsheets"
+
       - name: add node IDs to sheet
         run: ./scripts/insert-nids.sh
         env:
           URL: ${{ github.event.inputs.url }}
-          ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          ACCESS_TOKEN: ${{ steps.auth_rw.outputs.access_token }}
 
       - name: Notify Slack on Success
         if: ${{ success() }}
