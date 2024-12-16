@@ -23,11 +23,11 @@ fi
 
 if [ -f input_data/target.update.csv ]; then
   python3 workbench --config configs/update.yml
-  grep ERROR logs/update.log && exit 1 || echo "No errors"
+  grep ERROR logs/update.log | grep -Ev '"supplemental_file" in .* not created because CSV field is empty' && exit 1 || echo "No errors"
 fi
 
 if [ -f input_data/target.csv ]; then
   python3 workbench --config configs/create.yml
-  grep ERROR logs/items.log && exit 1 || echo "No errors"
+  grep ERROR logs/items.log | grep -Ev '"supplemental_file" in .* not created because CSV field is empty' && exit 1 || echo "No errors"
 fi
 
