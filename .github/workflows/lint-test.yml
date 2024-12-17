@@ -7,12 +7,12 @@ jobs:
   lint-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@971e284b6050e8a5849b72094c50ab08da042db8 # v6
         with:
           version: latest
 
@@ -35,7 +35,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-    - uses: 'actions/checkout@v4'
+    - uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # v4
     - name: Extract branch name
       shell: bash
       run: |-
@@ -50,20 +50,20 @@ jobs:
       id: extract_tag
     - id: 'auth'
       name: 'Authenticate to Google Cloud'
-      uses: 'google-github-actions/auth@v1'
+      uses: 'google-github-actions/auth@3a3c4c57d294ef65efaaee4ff17b22fa88dd3c69' # v1
       with:
         workload_identity_provider: ${{ secrets.GCLOUD_OIDC_POOL }}
         create_credentials_file: true
         service_account: ${{ secrets.GSA }}
         token_format: 'access_token'
-    - uses: 'docker/login-action@v3'
+    - uses: 'docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567' # v3
       name: 'Docker login'
       with:
         registry: 'us-docker.pkg.dev'
         username: 'oauth2accesstoken'
         password: '${{ steps.auth.outputs.access_token }}'
     - name: Build and push
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
       with:
         context: .
         push: true

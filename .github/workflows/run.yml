@@ -27,7 +27,7 @@ jobs:
       group: "workbench-executions"
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Validate input
         run: ./scripts/validate.sh
@@ -37,7 +37,7 @@ jobs:
 
       - id: 'auth_ro'
         name: 'Authenticate to Google Cloud (read only)'
-        uses: 'google-github-actions/auth@v1'
+        uses: 'google-github-actions/auth@3a3c4c57d294ef65efaaee4ff17b22fa88dd3c69' # v1
         with:
           workload_identity_provider: ${{ secrets.WORKBENCH_GCLOUD_OIDC_POOL }}
           create_credentials_file: true
@@ -83,7 +83,7 @@ jobs:
           ACCESS_TOKEN: ${{ steps.auth_ro.outputs.access_token }}
 
       - name: Checkout workbench
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           repository: lehigh-university-libraries/islandora_workbench
           ref: simple-field-json
@@ -97,7 +97,7 @@ jobs:
 
       - id: 'auth_rw'
         name: 'Authenticate to Google Cloud (read+write)'
-        uses: 'google-github-actions/auth@v1'
+        uses: 'google-github-actions/auth@3a3c4c57d294ef65efaaee4ff17b22fa88dd3c69' # v1
         with:
           workload_identity_provider: ${{ secrets.WORKBENCH_GCLOUD_OIDC_POOL }}
           create_credentials_file: true
