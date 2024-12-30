@@ -15,7 +15,7 @@ else
 fi
 
 # make sure the sheet passes the check my work
-STATUS=$(curl -v \
+STATUS=$(curl -s \
   -w '%{http_code}' \
   -H "X-Secret: $SHARED_SECRET" \
   -o check.json \
@@ -34,7 +34,7 @@ if [[ "$(jq '. | length' check.json)" -gt 0 ]]; then
 fi
 
 # transform google sheet to a workbench CSV
-STATUS=$(curl -v \
+STATUS=$(curl -s \
   -w '%{http_code}' \
   -H "X-Secret: $SHARED_SECRET" \
   -XPOST \
