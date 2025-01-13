@@ -4,7 +4,8 @@ WORKDIR /app
 
 COPY . ./
 
-RUN go mod download \
+RUN apk update && apk add curl --no-cache \
+  && go mod download \
   && go build -o /app/fabricator \
   && go clean -cache -modcache
 
