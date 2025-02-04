@@ -36,8 +36,3 @@ echo "Uploading CSV to Google Sheets"
 GSHEET=$(./go-islandora transform csv --source "$CSV" --folder "$FOLDER_ID")
 
 echo "Starting ingest"
-exit 0
-gh workflow run run.yml \
-  --repo lehigh-university-libraries/fabricator \
-  --ref main \
-  -f url="$GSHEET"
