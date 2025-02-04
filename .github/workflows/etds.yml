@@ -2,6 +2,8 @@ name: Ingest ProQuest ETDs
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '00 14 * * *'
 jobs:
   run:
     timeout-minutes: 1440
@@ -27,3 +29,10 @@ jobs:
         env:
           FOLDER_ID: ${{ secrets.FOLDER_ID }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify Slack on Failure
+        if: ${{ failure() }}
+        run: ./scripts/slack.sh
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          MESSAGE: "🚨🚨🚨 ETD job failed!"
