@@ -133,3 +133,5 @@ jobs:
       - name: Cleanup
         if: ${{ always() }}
         run: ./scripts/cleanup-etds.sh
+        env:
+          ETD: ${{ github.event.inputs.etd }}
