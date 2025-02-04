@@ -12,6 +12,11 @@ on:
         required: true
         type: string
         default: "Sheet1"
+      etd:
+        description: If this is an ETD job
+        type: string
+        default: "false"
+
 jobs:
   run:
     # 3d max execution time
@@ -124,3 +129,7 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           MESSAGE: "🚨 Workbench job failed!"
+
+      - name: Cleanup
+        if: ${{ always() }}
+        run: ./scripts/cleanup-etds.sh

@@ -27,7 +27,3 @@ jobs:
         env:
           FOLDER_ID: ${{ secrets.FOLDER_ID }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Cleanup
-        if: ${{ always() }}
-        run: ./scripts/cleanup-etds.sh
