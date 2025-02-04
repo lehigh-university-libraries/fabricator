@@ -20,7 +20,7 @@ jobs:
           create_credentials_file: true
           service_account: ${{ secrets.WORKBENCH_GSA }}
           token_format: 'access_token'
-          access_token_scopes: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file"
+          access_token_scopes: "https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/drive"
 
       - name: Run
         run: ./scripts/etds.sh
