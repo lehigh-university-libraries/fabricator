@@ -1,0 +1,29 @@
+name: Ingest ProQuest ETDs
+
+on:
+  workflow_dispatch:
+jobs:
+  run:
+    timeout-minutes: 15
+    runs-on: self-hosted
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - id: 'auth_rw'
+        name: 'Authenticate to Google Cloud (read+write)'
+        uses: 'google-github-actions/auth@6fc4af4b145ae7821d527454aa9bd537d1f2dc5f' # v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKBENCH_GCLOUD_OIDC_POOL }}
+          create_credentials_file: true
+          service_account: ${{ secrets.WORKBENCH_GSA }}
+          token_format: 'access_token'
+          access_token_scopes: "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file"
+
+      - name: Run
+        run: ./scripts/etds.sh
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth_rw.outputs.credentials_file }}
+          FOLDER_ID: ${{ secrets.FOLDER_ID }}
