@@ -322,6 +322,9 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 								str = fmt.Sprintf(`{"type": "issn", "identifier": "%s"}`, str)
 							case "file", "supplemental_file":
 								str = strings.ReplaceAll(str, `\`, `/`)
+								if len(str) > 7 && str[0:6] == "/home/" {
+									break
+								}
 								str = strings.TrimLeft(str, "/")
 								if len(str) > 3 && str[0:3] != "mnt" {
 									str = fmt.Sprintf("/mnt/islandora_staging/%s", str)
