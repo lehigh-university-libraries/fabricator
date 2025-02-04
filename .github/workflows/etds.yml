@@ -4,11 +4,12 @@ on:
   workflow_dispatch:
 jobs:
   run:
-    timeout-minutes: 15
+    timeout-minutes: 1440
     runs-on: self-hosted
     permissions:
       contents: read
       id-token: write
+      actions: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
@@ -26,3 +27,7 @@ jobs:
         env:
           FOLDER_ID: ${{ secrets.FOLDER_ID }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cleanup
+        if: ${{ always() }}
+        run: ./scripts/cleanup-etds.sh
