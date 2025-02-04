@@ -3,7 +3,7 @@
 set -eou pipefail
 
 WORKING_DIR="$HOME/etds"
-PROCESSED_DIR="$HOME/etds"
+PROCESSED_DIR="$HOME/etds.processed"
 cd "$WORKING_DIR"
 
 RUN=false

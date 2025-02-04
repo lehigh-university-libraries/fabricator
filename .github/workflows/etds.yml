@@ -17,7 +17,6 @@ jobs:
         uses: 'google-github-actions/auth@6fc4af4b145ae7821d527454aa9bd537d1f2dc5f' # v2
         with:
           workload_identity_provider: ${{ secrets.WORKBENCH_GCLOUD_OIDC_POOL }}
-          create_credentials_file: true
           service_account: ${{ secrets.WORKBENCH_GSA }}
           token_format: 'access_token'
           access_token_scopes: "https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/drive"
@@ -25,6 +24,5 @@ jobs:
       - name: Run
         run: ./scripts/etds.sh
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth_rw.outputs.credentials_file }}
           FOLDER_ID: ${{ secrets.FOLDER_ID }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
