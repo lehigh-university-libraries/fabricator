@@ -188,10 +188,10 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 				case "File Path", "Supplemental File":
 					filename := strings.ReplaceAll(cell, `\`, `/`)
 
-					// todo: only have fabricator run in docker
-					// and not in the github action job, too
-					filename = strings.TrimLeft(filename, "/")
-					if len(filename) > 3 && filename[0:3] != "mnt" {
+					if len(filename) > 7 && filename[0:6] == "/home/" {
+						break
+					} else if len(filename) > 3 && filename[0:3] != "mnt" {
+						filename = strings.TrimLeft(filename, "/")
 						filename = fmt.Sprintf("/mnt/islandora_staging/%s", filename)
 					}
 
