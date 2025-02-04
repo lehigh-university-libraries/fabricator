@@ -3,12 +3,13 @@
 set -eou pipefail
 
 WORKING_DIR="$HOME/etds"
+PROCESSED_DIR="$HOME/etds"
 cd "$WORKING_DIR"
 
 RUN=false
 for ZIP in /mnt/islandora_staging/etd_uploads/*.zip; do
   FILE=$(basename "$ZIP");
-  if [ ! -f "$WORKING_DIR/processed/$FILE" ]; then
+  if [ ! -f "$PROCESSED_DIR/$FILE" ]; then
     cp "$ZIP" "$WORKING_DIR/$FILE"
     RUN=true
     unzip "$FILE"
@@ -30,7 +31,7 @@ rm "$ARCH"
 DATE=$(date +"%Y-%m-%d")
 CSV="etds-$DATE.csv"
 echo "Transforming ZIP files to CSV"
-./go-islandora --source "$(pwd)" --target "$CSV"
+./go-islandora transform etd --source "$(pwd)" --target "$CSV"
 
 echo "Uploading CSV to Google Sheets"
 GSHEET=$(./go-islandora transform csv --source "$CSV" --folder "$FOLDER_ID")
