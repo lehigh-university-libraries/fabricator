@@ -4,6 +4,8 @@ WORKDIR /app
 
 COPY . ./
 
+RUN mkdir -p /home/runner
+
 RUN apk update && apk add curl --no-cache \
   && go mod download \
   && go build -o /app/fabricator \
