@@ -27,3 +27,4 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth_rw.outputs.credentials_file }}
           FOLDER_ID: ${{ secrets.FOLDER_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

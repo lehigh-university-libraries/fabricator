@@ -35,4 +35,4 @@ echo "Transforming ZIP files to CSV"
 echo "Uploading CSV to Google Sheets"
 GSHEET=$(./go-islandora transform csv --source "$CSV" --folder "$FOLDER_ID")
 
-echo "Starting ingest"
+echo "Starting ingest of $GSHEET"
