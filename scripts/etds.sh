@@ -36,4 +36,18 @@ echo "Transforming ZIP files to CSV"
 echo "Uploading CSV to Google Sheets"
 GSHEET=$(./go-islandora transform csv --source "$CSV" --folder "$FOLDER_ID")
 
-echo "Starting ingest of $GSHEET"
+echo "Waiting for any ingest jobs to complete"
+RUN_ID=$(gh run list --workflow "run.yml" --json databaseId --jq '.[0].databaseId')
+gh run watch "$RUN_ID" --repo lehigh-university-libraries/fabricator
+
+echo "Starting ingest"
+gh workflow run run.yml \
+  --repo lehigh-university-libraries/fabricator \
+  --ref main \
+  -f url="${GSHEET}/edit?gid=0#gid=0"
+
+sleep 10
+
+echo "Waiting for ingest job to complete"
+RUN_ID=$(gh run list --workflow "run.yml" --json databaseId --jq '.[0].databaseId')
+gh run watch "$RUN_ID" --repo lehigh-university-libraries/fabricator

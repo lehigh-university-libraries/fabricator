@@ -3,7 +3,9 @@
 set -eou pipefail
 
 WORKING_DIR="$HOME/etds"
-cd "$WORKING_DIR"
+PROCESSED_DIR="$HOME/etds.processed"
 
-mv ./*.zip ./etd* processed/
-rm ./*.xml ./*.pdf
+cd "$WORKING_DIR"
+mv ./*.zip "$PROCESSED_DIR/"
+
+rm -rf ./*
