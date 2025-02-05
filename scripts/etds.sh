@@ -1,13 +1,21 @@
 #!/usr/bin/env bash
 
 set -eou pipefail
+shopt -s nullglob
+
+ZIP_FILES=(/mnt/islandora_staging/etd_uploads/*.zip)
+if [ ${#ZIP_FILES[@]} -eq 0 ]; then
+  echo "No ZIP files found. Exiting."
+  exit 0
+fi
 
 WORKING_DIR="$HOME/etds"
 PROCESSED_DIR="$HOME/etds.processed"
 cd "$WORKING_DIR"
 
+
 RUN=false
-for ZIP in /mnt/islandora_staging/etd_uploads/*.zip; do
+for ZIP in "${ZIP_FILES[@]}"; do
   FILE=$(basename "$ZIP");
   if [ ! -f "$PROCESSED_DIR/$FILE" ]; then
     cp "$ZIP" "$WORKING_DIR/$FILE"
@@ -43,3 +51,4 @@ gh workflow run run.yml \
   -f url="${GSHEET}/edit?gid=0#gid=0" \
   -f range=Sheet1 \
   -f etd=true
+
