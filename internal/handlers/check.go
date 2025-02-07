@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/lehigh-university-libraries/fabricator/internal/contributor"
 	"github.com/lehigh-university-libraries/fabricator/internal/tgn"
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	edtf "github.com/sfomuseum/go-edtf/parser"
 )
 
