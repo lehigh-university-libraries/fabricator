@@ -21,7 +21,6 @@ STATUS=$(curl -s \
   -o check.json \
   -XPOST \
   --upload-file csv.json \
-  --cacert /etc/ssl/certs/isle-test.pem \
   https://islandora-test.lib.lehigh.edu/workbench/check)
 if [ "${STATUS}" != 200 ]; then
   echo "Check my work failed"
@@ -40,7 +39,6 @@ STATUS=$(curl -s \
   -H "X-Secret: $SHARED_SECRET" \
   -XPOST \
   -o target.zip \
-  --cacert /etc/ssl/certs/isle-test.pem \
   --upload-file source.csv \
   https://islandora-test.lib.lehigh.edu/workbench/transform)
 if [ "${STATUS}" -gt 299 ] || [ "${STATUS}" -lt 200 ]; then
