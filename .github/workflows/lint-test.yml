@@ -9,10 +9,10 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
-      - uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5
+      - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@2226d7cb06a077cd73e56eedd38eecad18e5d837 # v6
+        uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84 # v6
         with:
           version: latest
 
@@ -53,7 +53,7 @@ jobs:
         service_account: ${{ secrets.GSA }}
         token_format: 'access_token'
 
-    - uses: 'docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567' # v3
+    - uses: 'docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772' # v3
       name: 'Docker login'
       with:
         registry: 'us-docker.pkg.dev'
@@ -61,7 +61,7 @@ jobs:
         password: '${{ steps.auth.outputs.access_token }}'
 
     - name: Build and push
-      uses: docker/build-push-action@0adf9959216b96bec444f325f1e493d4aa344497 # v6
+      uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6
       with:
         context: .
         push: true
