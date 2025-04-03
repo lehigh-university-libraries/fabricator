@@ -116,13 +116,13 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 						break
 					}
 					if column == "Parent Collection" {
-						url := fmt.Sprintf("https://preserve.lehigh.edu/node/%d?_format=json", id)
+						url := fmt.Sprintf("%s/node/%d?_format=json", os.Getenv("ISLE_SITE_URL"), id)
 						if !checkURL(url, urlCheckCache) {
 							errors[i] = fmt.Sprintf("Could not identify parent collection %d", id)
 						}
 					}
 					if column == "Node ID" {
-						url := fmt.Sprintf("https://preserve.lehigh.edu/node/%d?_format=json", id)
+						url := fmt.Sprintf("%s/node/%d?_format=json", os.Getenv("ISLE_SITE_URL"), id)
 						if !checkURL(url, urlCheckCache) {
 							errors[i] = fmt.Sprintf("Could not find node ID %d", id)
 						}

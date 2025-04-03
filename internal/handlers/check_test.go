@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,6 +12,22 @@ import (
 
 func TestCheckMyWork(t *testing.T) {
 	os.Setenv("FABRICATOR_DATA_MOUNT", "/tmp")
+
+	// setup a mock server for checking node paths
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/node/0" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintln(w, "{}")
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	os.Setenv("ISLE_SITE_URL", server.URL)
+
 	files := []struct {
 		name         string
 		permissions  os.FileMode
