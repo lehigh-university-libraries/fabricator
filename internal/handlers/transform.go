@@ -165,182 +165,184 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 			for j := 0; j < t.NumField(); j++ {
 				field := t.Field(j)
 				jsonTag := getJSONFieldName(field.Tag.Get("json"))
-				if jsonTag == header {
-					value := v.FieldByName(field.Name)
-					if value.IsValid() && value.CanSet() {
-						if record[i] == "" {
-							continue
+				if jsonTag != header {
+					continue
+				}
+				value := v.FieldByName(field.Name)
+				if !value.IsValid() || !value.CanSet() {
+					continue
+				}
+				if record[i] == "" {
+					continue
+				}
+				column := getJSONFieldName(field.Tag.Get("csv"))
+				if column == "" {
+					return nil, nil, nil, fmt.Errorf("unknown column: %s", jsonTag)
+				}
+				originalColumn := column
+
+				values := []string{}
+				for _, str := range strings.Split(record[i], " ; ") {
+					switch originalColumn {
+					case "field_linked_agent":
+						var c contributor.Contributor
+						err := json.Unmarshal([]byte(str), &c)
+						if err != nil {
+							return nil, nil, nil, fmt.Errorf("error unmarshalling contributor: %s %v", str, err)
 						}
-						column := getJSONFieldName(field.Tag.Get("csv"))
-						if column == "" {
-							return nil, nil, nil, fmt.Errorf("unknown column: %s", jsonTag)
+
+						str = c.Name
+						if c.Institution != "" {
+							str = fmt.Sprintf("%s - %s", str, c.Institution)
 						}
-						originalColumn := column
-
-						values := []string{}
-						for _, str := range strings.Split(record[i], " ; ") {
-							switch originalColumn {
-							case "field_linked_agent":
-								var c contributor.Contributor
-								err := json.Unmarshal([]byte(str), &c)
-								if err != nil {
-									return nil, nil, nil, fmt.Errorf("error unmarshalling contributor: %s %v", str, err)
-								}
-
-								str = c.Name
-								if c.Institution != "" {
-									str = fmt.Sprintf("%s - %s", str, c.Institution)
-								}
-								if c.Status != "" || c.Email != "" || c.Institution != "" || c.Orcid != "" {
-									name := strings.Split(str, ":")
-									if len(name) < 4 {
-										return nil, nil, nil, fmt.Errorf("poorly formatted contributor: %s %v", str, err)
-									}
-									agent := []string{
-										strings.Join(name[3:], ":"),
-										c.Status,
-										fmt.Sprintf("schema:worksFor:corporate_body:%s", c.Institution),
-										c.Email,
-										fmt.Sprintf(`{"attr0": "orcid", "value": "%s"}`, c.Orcid),
-									}
-									if c.Institution == "" {
-										agent[2] = ""
-									}
-									if c.Orcid == "" {
-										agent[4] = ""
-									}
-
-									linkedAgents = append(linkedAgents, agent)
-								}
-
-							case "field_add_coverpage", "published":
-								switch str {
-								case "Yes":
-									str = "1"
-								case "No":
-									str = "0"
-								default:
-									return nil, nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
-								}
-							case "id", "parent_id":
-								if !re.MatchString(str) {
-									return nil, nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
-								}
-							case "field_weight", "node_id":
-								_, err := strconv.Atoi(str)
-								if err != nil {
-									return nil, nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
-								}
-								str = strings.TrimLeft(str, "0")
-							case "field_subject_hierarchical_geo":
-								if _, ok := tgnCache[str]; ok {
-									str = tgnCache[str]
-									break
-								}
-
-								tgn, err := tgn.GetLocationFromTGN(str)
-								if err != nil {
-									return nil, nil, nil, fmt.Errorf("unknown TGN: %s %v", str, err)
-								}
-
-								locationJSON, err := json.Marshal(tgn)
-								if err != nil {
-									return nil, nil, nil, fmt.Errorf("error marshalling TGN: %s %v", str, err)
-								}
-								tgnCache[str] = string(locationJSON)
-								str = tgnCache[str]
-
-							case "field_rights":
-								switch str {
-								case "IN COPYRIGHT":
-									str = "http://rightsstatements.org/vocab/InC/1.0/"
-								case "IN COPYRIGHT - EU ORPHAN WORK":
-									str = "http://rightsstatements.org/vocab/InC-OW-EU/1.0/"
-								case "IN COPYRIGHT - EDUCATIONAL USE PERMITTED":
-									str = "http://rightsstatements.org/vocab/InC-EDU/1.0/"
-								case "IN COPYRIGHT - NON-COMMERCIAL USE PERMITTED":
-									str = "http://rightsstatements.org/vocab/InC-NC/1.0/"
-								case "IN COPYRIGHT - RIGHTS-HOLDER(S) UNLOCATABLE OR UNIDENTIFIABLE":
-									str = "http://rightsstatements.org/vocab/InC-RUU/1.0/"
-								case "NO COPYRIGHT - CONTRACTUAL RESTRICTIONS":
-									str = "http://rightsstatements.org/vocab/NoC-CR/1.0/"
-								case "NO COPYRIGHT - NON-COMMERCIAL USE ONLY":
-									str = "http://rightsstatements.org/vocab/NoC-NC/1.0/"
-								case "NO COPYRIGHT - OTHER KNOWN LEGAL RESTRICTIONS":
-									str = "http://rightsstatements.org/vocab/NoC-OKLR/1.0/"
-								case "NO COPYRIGHT - UNITED STATES":
-									str = "http://rightsstatements.org/vocab/NoC-US/1.0/"
-								case "COPYRIGHT NOT EVALUATED":
-									str = "http://rightsstatements.org/vocab/CNE/1.0/"
-								case "COPYRIGHT UNDETERMINED":
-									str = "http://rightsstatements.org/vocab/UND/1.0/"
-								case "NO KNOWN COPYRIGHT":
-									str = "http://rightsstatements.org/vocab/NKC/1.0/"
-								default:
-									return nil, nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
-								}
-							case "field_extent.attr0=page",
-								"field_extent.attr0=dimensions",
-								"field_extent.attr0=bytes",
-								"field_extent.attr0=minutes",
-								"field_abstract.attr0=description",
-								"field_abstract.attr0=abstract",
-								"field_note.attr0=preferred-citation",
-								"field_note.attr0=capture-device",
-								"field_note.attr0=ppi",
-								"field_note.attr0=collection",
-								"field_note.attr0=box",
-								"field_note.attr0=series",
-								"field_note.attr0=folder",
-								"field_part_detail.attr0=volume",
-								"field_part_detail.attr0=issue",
-								"field_part_detail.attr0=page",
-								"field_identifier.attr0=doi",
-								"field_identifier.attr0=uri",
-								"field_identifier.attr0=call-number",
-								"field_identifier.attr0=report-number":
-								components := strings.Split(originalColumn, ".attr0=")
-								str = strings.ReplaceAll(str, `\`, `\\`)
-								str = strings.ReplaceAll(str, `"`, `\"`)
-								column = components[0]
-								if column == "field_part_detail" {
-									str = fmt.Sprintf(`{"number":"%s","type":"%s"}`, str, components[1])
-
-								} else {
-									str = fmt.Sprintf(`{"value":"%s","attr0":"%s"}`, str, components[1])
-								}
-							case "field_geographic_subject.vid=geographic_naf",
-								"field_geographic_subject.vid=geographic_local":
-								components := strings.Split(originalColumn, ".vid=")
-								column = components[0]
-								str = fmt.Sprintf("%s:%s", components[1], str)
-							case "field_related_item.title":
-								column = "field_related_item"
-								str = fmt.Sprintf(`{"title": "%s"}`, str)
-							case "field_related_item.identifier_type=issn":
-								column = "field_related_item"
-								str = fmt.Sprintf(`{"type": "issn", "identifier": "%s"}`, str)
-							case "file", "supplemental_file":
-								str = strings.ReplaceAll(str, `\`, `/`)
-								if len(str) > 7 && str[0:6] == "/home/" {
-									break
-								}
-								str = strings.TrimLeft(str, "/")
-								if len(str) > 3 && str[0:3] != "mnt" {
-									str = fmt.Sprintf("/mnt/islandora_staging/%s", str)
-								}
+						if c.Status != "" || c.Email != "" || c.Institution != "" || c.Orcid != "" {
+							name := strings.Split(str, ":")
+							if len(name) < 4 {
+								return nil, nil, nil, fmt.Errorf("poorly formatted contributor: %s %v", str, err)
+							}
+							agent := []string{
+								strings.Join(name[3:], ":"),
+								c.Status,
+								fmt.Sprintf("schema:worksFor:corporate_body:%s", c.Institution),
+								c.Email,
+								fmt.Sprintf(`{"attr0": "orcid", "value": "%s"}`, c.Orcid),
+							}
+							if c.Institution == "" {
+								agent[2] = ""
+							}
+							if c.Orcid == "" {
+								agent[4] = ""
 							}
 
-							str = strings.TrimSpace(str)
-							values = append(values, str)
+							linkedAgents = append(linkedAgents, agent)
 						}
 
-						newHeaders[column] = true
-						// replace the locally defined google sheets cell delimiter
-						// with workbench's pipe delimiter
-						row[column] = append(row[column], strings.Join(values, "|"))
+					case "field_add_coverpage", "published":
+						switch str {
+						case "Yes":
+							str = "1"
+						case "No":
+							str = "0"
+						default:
+							return nil, nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+						}
+					case "id", "parent_id":
+						if !re.MatchString(str) {
+							return nil, nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+						}
+					case "field_weight", "node_id":
+						_, err := strconv.Atoi(str)
+						if err != nil {
+							return nil, nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+						}
+						str = strings.TrimLeft(str, "0")
+					case "field_subject_hierarchical_geo":
+						if _, ok := tgnCache[str]; ok {
+							str = tgnCache[str]
+							break
+						}
+
+						tgn, err := tgn.GetLocationFromTGN(str)
+						if err != nil {
+							return nil, nil, nil, fmt.Errorf("unknown TGN: %s %v", str, err)
+						}
+
+						locationJSON, err := json.Marshal(tgn)
+						if err != nil {
+							return nil, nil, nil, fmt.Errorf("error marshalling TGN: %s %v", str, err)
+						}
+						tgnCache[str] = string(locationJSON)
+						str = tgnCache[str]
+
+					case "field_rights":
+						switch str {
+						case "IN COPYRIGHT":
+							str = "http://rightsstatements.org/vocab/InC/1.0/"
+						case "IN COPYRIGHT - EU ORPHAN WORK":
+							str = "http://rightsstatements.org/vocab/InC-OW-EU/1.0/"
+						case "IN COPYRIGHT - EDUCATIONAL USE PERMITTED":
+							str = "http://rightsstatements.org/vocab/InC-EDU/1.0/"
+						case "IN COPYRIGHT - NON-COMMERCIAL USE PERMITTED":
+							str = "http://rightsstatements.org/vocab/InC-NC/1.0/"
+						case "IN COPYRIGHT - RIGHTS-HOLDER(S) UNLOCATABLE OR UNIDENTIFIABLE":
+							str = "http://rightsstatements.org/vocab/InC-RUU/1.0/"
+						case "NO COPYRIGHT - CONTRACTUAL RESTRICTIONS":
+							str = "http://rightsstatements.org/vocab/NoC-CR/1.0/"
+						case "NO COPYRIGHT - NON-COMMERCIAL USE ONLY":
+							str = "http://rightsstatements.org/vocab/NoC-NC/1.0/"
+						case "NO COPYRIGHT - OTHER KNOWN LEGAL RESTRICTIONS":
+							str = "http://rightsstatements.org/vocab/NoC-OKLR/1.0/"
+						case "NO COPYRIGHT - UNITED STATES":
+							str = "http://rightsstatements.org/vocab/NoC-US/1.0/"
+						case "COPYRIGHT NOT EVALUATED":
+							str = "http://rightsstatements.org/vocab/CNE/1.0/"
+						case "COPYRIGHT UNDETERMINED":
+							str = "http://rightsstatements.org/vocab/UND/1.0/"
+						case "NO KNOWN COPYRIGHT":
+							str = "http://rightsstatements.org/vocab/NKC/1.0/"
+						default:
+							return nil, nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+						}
+					case "field_extent.attr0=page",
+						"field_extent.attr0=dimensions",
+						"field_extent.attr0=bytes",
+						"field_extent.attr0=minutes",
+						"field_abstract.attr0=description",
+						"field_abstract.attr0=abstract",
+						"field_note.attr0=preferred-citation",
+						"field_note.attr0=capture-device",
+						"field_note.attr0=ppi",
+						"field_note.attr0=collection",
+						"field_note.attr0=box",
+						"field_note.attr0=series",
+						"field_note.attr0=folder",
+						"field_part_detail.attr0=volume",
+						"field_part_detail.attr0=issue",
+						"field_part_detail.attr0=page",
+						"field_identifier.attr0=doi",
+						"field_identifier.attr0=uri",
+						"field_identifier.attr0=call-number",
+						"field_identifier.attr0=report-number":
+						components := strings.Split(originalColumn, ".attr0=")
+						str = strings.ReplaceAll(str, `\`, `\\`)
+						str = strings.ReplaceAll(str, `"`, `\"`)
+						column = components[0]
+						if column == "field_part_detail" {
+							str = fmt.Sprintf(`{"number":"%s","type":"%s"}`, str, components[1])
+
+						} else {
+							str = fmt.Sprintf(`{"value":"%s","attr0":"%s"}`, str, components[1])
+						}
+					case "field_geographic_subject.vid=geographic_naf",
+						"field_geographic_subject.vid=geographic_local":
+						components := strings.Split(originalColumn, ".vid=")
+						column = components[0]
+						str = fmt.Sprintf("%s:%s", components[1], str)
+					case "field_related_item.title":
+						column = "field_related_item"
+						str = fmt.Sprintf(`{"title": "%s"}`, str)
+					case "field_related_item.identifier_type=issn":
+						column = "field_related_item"
+						str = fmt.Sprintf(`{"type": "issn", "identifier": "%s"}`, str)
+					case "file", "supplemental_file":
+						str = strings.ReplaceAll(str, `\`, `/`)
+						if len(str) > 7 && str[0:6] == "/home/" {
+							break
+						}
+						str = strings.TrimLeft(str, "/")
+						if len(str) > 3 && str[0:3] != "mnt" {
+							str = fmt.Sprintf("/mnt/islandora_staging/%s", str)
+						}
 					}
+
+					str = strings.TrimSpace(str)
+					values = append(values, str)
 				}
+
+				newHeaders[column] = true
+				// replace the locally defined google sheets cell delimiter
+				// with workbench's pipe delimiter
+				row[column] = append(row[column], strings.Join(values, "|"))
 			}
 		}
 
