@@ -16,7 +16,7 @@ func TestCheckMyWork(t *testing.T) {
 	// setup a mock server for checking node paths
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/node/0?_format=json" {
+		if r.URL.Path == "/node/0" {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
