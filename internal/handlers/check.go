@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
-	jwt "github.com/golang-jwt/jwt/v5"
 	"github.com/lehigh-university-libraries/fabricator/internal/contributor"
 	"github.com/lehigh-university-libraries/fabricator/internal/tgn"
-	"github.com/lestrrat-go/jwx/v2/jwk"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+	jwt "github.com/lestrrat-go/jwx/v3/jwt"
 	edtf "github.com/sfomuseum/go-edtf/parser"
 )
 
@@ -293,50 +293,41 @@ func authRequest(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	tokenString := parts[1]
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
 
-		kid, ok := token.Header["kid"].(string)
-		if !ok {
-			return nil, fmt.Errorf("kid not found in token header")
-		}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	keySet, err := jwk.Fetch(ctx, googleCertsURL)
+	if err != nil {
+		slog.Error("unable to fetch JWK set", "url", googleCertsURL, "err", err)
+	}
 
-		ctx := context.Background()
-		jwksSet, err := jwk.Fetch(ctx, googleCertsURL)
-		if err != nil {
-			return nil, fmt.Errorf("unable to fetch JWK set from %s: %v", googleCertsURL, err)
-		}
-		key, ok := jwksSet.LookupKeyID(kid)
-		if !ok {
-			return nil, fmt.Errorf("unable to find key '%s'", kid)
-		}
-
-		var pubkey interface{}
-		if err := key.Raw(&pubkey); err != nil {
-			return nil, fmt.Errorf("failed to get raw key: %v", err)
-		}
-
-		return pubkey, nil
-	})
-
-	if err != nil || !token.Valid {
-		slog.Error("Unable to validate token", "err", err)
-		http.Error(w, "Invalid token", http.StatusUnauthorized)
+	token, err := jwt.Parse([]byte(tokenString),
+		jwt.WithKeySet(keySet),
+		jwt.WithValidate(true),
+		jwt.WithContext(ctx),
+	)
+	if err != nil {
+		slog.Error("unable to parse token", "err", err)
 		return false
 	}
 
-	claims := token.Claims.(jwt.MapClaims)
-	emailVerified, ok := claims["email_verified"].(bool)
-	if !emailVerified || !ok {
+	var emailVerified bool
+	err = token.Get("email_verified", emailVerified)
+	if err != nil || !emailVerified {
 		slog.Error("Unverified email", "err", err)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
 		return false
 	}
 
-	email, ok := claims["email"].(string)
-	if !ok || len(email) < 11 || email[len(email)-11:] != "@lehigh.edu" {
+	var email string
+	err = token.Get("email", email)
+	if err != nil {
+		slog.Error("No email claim", "err", err)
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return false
+	}
+	if len(email) < 11 || email[len(email)-11:] != "@lehigh.edu" {
+		slog.Error("Unknown email", "email", email)
 		http.Error(w, "Error extracting email from token", http.StatusInternalServerError)
 		return false
 	}
