@@ -8,3 +8,8 @@ log_file_mode: w
 allow_missing_files: true
 additional_files:
  - supplemental_file: 151326
+clean_csv_values_skip:
+  - smart_quotes
+  - inside_spaces
+  - outside_spaces
+  - outside_subdelimiters
