@@ -312,7 +312,7 @@ func authRequest(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	var emailVerified bool
-	err = token.Get("email_verified", emailVerified)
+	err = token.Get("email_verified", &emailVerified)
 	if err != nil || !emailVerified {
 		slog.Error("Unverified email", "err", err)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
@@ -320,7 +320,7 @@ func authRequest(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	var email string
-	err = token.Get("email", email)
+	err = token.Get("email", &email)
 	if err != nil {
 		slog.Error("No email claim", "err", err)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
