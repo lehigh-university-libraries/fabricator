@@ -24,7 +24,7 @@ jobs:
     env:
       SHARED_SECRET: ${{ secrets.FABRICATOR_SHARED_SECRET }}
       FABRICATOR_DATA_MOUNT: /mnt/islandora_staging
-    runs-on: self-hosted
+    runs-on: [self-hosted, workbench]
     permissions:
       contents: read
       id-token: write
