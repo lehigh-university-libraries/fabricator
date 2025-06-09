@@ -24,6 +24,8 @@ jobs:
     env:
       SHARED_SECRET: ${{ secrets.FABRICATOR_SHARED_SECRET }}
       FABRICATOR_DATA_MOUNT: /mnt/islandora_staging
+      REQUESTS_CA_BUNDLE: /etc/ssl/certs/isle.pem
+      CURL_CA_BUNDLE: /etc/ssl/certs/isle.pem
     runs-on: [self-hosted, workbench]
     permissions:
       contents: read
