@@ -17,6 +17,7 @@ fi
 # make sure the sheet passes the check my work
 STATUS=$(curl -s \
   -w '%{http_code}' \
+  --cacert /etc/ssl/certs/isle.pem \
   -H "X-Secret: $SHARED_SECRET" \
   -o check.json \
   -XPOST \
@@ -36,6 +37,7 @@ fi
 # transform google sheet to a workbench CSV
 STATUS=$(curl -s \
   -w '%{http_code}' \
+  --cacert /etc/ssl/certs/isle.pem \
   -H "X-Secret: $SHARED_SECRET" \
   -XPOST \
   -o target.zip \
