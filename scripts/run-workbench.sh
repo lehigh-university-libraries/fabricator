@@ -12,6 +12,8 @@ fi
 
 mv ../*.csv input_data/
 
+export REQUESTS_CA_BUNDLE
+
 # if we had linked agents with additional metadata
 # run that job first
 if [ -f input_data/target.agents.csv ]; then
