@@ -335,7 +335,7 @@ func TestCheckMyWork(t *testing.T) {
 				{"foo", "Paged Content", "foo", ""},
 			},
 			statusCode: http.StatusOK,
-			response:   `{"D2":"Paged content must have a parent collection"}`,
+			response:   `{"D2":"Paged content must have a parent collection or parent ID"}`,
 		},
 		{
 			name:   "Page needs Parent ID",
@@ -345,7 +345,7 @@ func TestCheckMyWork(t *testing.T) {
 				{"foo", "Page", "foo", ""},
 			},
 			statusCode: http.StatusOK,
-			response:   `{"D2":"Pages must have a parent id"}`,
+			response:   `{"D2":"Pages must have a parent id or parent collection"}`,
 		},
 		{
 			name:   "Do not require title/model on updates",
