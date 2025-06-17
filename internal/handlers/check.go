@@ -79,15 +79,15 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 				}
 				if column == "Parent Collection" {
 					model := ColumnValue("Object Model", header, row)
-					if model == "Paged Content" {
-						errors[i] = "Paged content must have a parent collection"
+					if model == "Paged Content" && ColumnValue("Page/Item Parent ID", header, row) == "" {
+						errors[i] = "Paged content must have a parent collection or parent ID"
 					}
 				}
 
 				if column == "Page/Item Parent ID" {
 					model := ColumnValue("Object Model", header, row)
-					if model == "Page" {
-						errors[i] = "Pages must have a parent id"
+					if model == "Page" && ColumnValue("Parent Collection", header, row) == "" {
+						errors[i] = "Pages must have a parent id or parent collection"
 					}
 				}
 
