@@ -183,6 +183,9 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					if !strInSlice(relator, relators) {
 						errors[i] = fmt.Sprintf("Invalid relator: %s", relator)
 					}
+					if name[3] == "" {
+						errors[i] = "Blank names are not allowed"
+					}
 
 					// make sure the file exists in the filesystem
 				case "File Path", "Supplemental File":
