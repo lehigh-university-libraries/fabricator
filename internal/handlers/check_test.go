@@ -328,6 +328,26 @@ func TestCheckMyWork(t *testing.T) {
 			response:   `{"D2":"Contributor name not in proper format"}`,
 		},
 		{
+			name:   "Contributor bad relator",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Contributor"},
+				{"foo", "bar", "foo", `{"name":"rel:foo:person:bar"}`},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"Invalid relator: rel:foo"}`,
+		},
+		{
+			name:   "Contributor name is blank",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Contributor"},
+				{"foo", "bar", "foo", `{"name":"rel:cre:person:"}`},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"Blank names are not allowed"}`,
+		},
+		{
 			name:   "Paged Content need collection",
 			method: http.MethodPost,
 			body: [][]string{
