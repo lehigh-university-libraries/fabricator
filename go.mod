@@ -4,7 +4,7 @@ go 1.24.1
 
 require (
 	github.com/lehigh-university-libraries/go-islandora v0.0.0-20250204195520-74c41c4f8da4
-	github.com/lestrrat-go/jwx/v3 v3.0.7
+	github.com/lestrrat-go/jwx/v3 v3.0.8
 	github.com/sfomuseum/go-edtf v1.2.1
 )
 
