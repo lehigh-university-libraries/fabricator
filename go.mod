@@ -1,6 +1,6 @@
 module github.com/lehigh-university-libraries/fabricator
 
-go 1.24.1
+go 1.24.5
 
 require (
 	github.com/lehigh-university-libraries/go-islandora 23abd28187e5
