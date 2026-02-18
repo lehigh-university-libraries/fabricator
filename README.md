@@ -90,13 +90,10 @@ $ curl -s \
 
 ### Get a workbench CSV from a google sheet CSV
 
-The `/workbench/transform` route transforms a Google Sheet CSV into a Workbench CSV. The route returns a ZIP of CSVs. There are three possible flavors of CSVs that can be returned:
+The `/workbench/transform` route transforms a Google Sheet CSV into a Workbench CSV. The route returns a ZIP of CSVs. There are two possible flavors of CSVs that can be returned:
 
 - target.csv - used to run [a workbench create task](./workbench-configs/create.yml)
   - this is the most common pattern used at Lehigh. This creates metadata and media/files for new content being added to the repository
-- target.agent.csv - used to run [a workbench create_terms task](./workbench-configs/create_terms.yml)
-  - this is returned when linked agents have additional metadata beyond just their name (e.g. email/institution/ORCiD)
-  - this allows creating those linked agents with the proper metadata and associating that term with the given record
 - target.update.csv - used to run [a workbench updaye task](./workbench-configs/update.yml)
   - this is returned when the Google Sheet contains node IDs in the sheet, signifying the job should be updating metadata for existing nodes
 
