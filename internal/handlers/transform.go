@@ -382,11 +382,14 @@ func (d *drupalTermResolver) ensurePerson(c contributor.Contributor, name string
 	lookupParams.Set("name", name)
 	lookupParams.Set("vocab", "person")
 
+	uniqueLookup := false
 	var institutionID int
 	if c.Email != "" {
 		lookupParams.Set("email", c.Email)
+		uniqueLookup = true
 	} else if c.Orcid != "" {
 		lookupParams.Set("orcid", c.Orcid)
+		uniqueLookup = true
 	} else if c.Institution != "" {
 		var err error
 		institutionID, err = d.ensureInstitution(c.Institution)
@@ -396,11 +399,27 @@ func (d *drupalTermResolver) ensurePerson(c contributor.Contributor, name string
 		lookupParams.Set("works_for", strconv.Itoa(institutionID))
 	}
 
-	tid, found, err := d.lookupTerm(lookupParams)
+	tid, foundName, found, err := d.lookupTerm(lookupParams)
 	if err != nil {
 		return 0, err
 	}
 	if found {
+		// If we matched by a unique identifier but the stored name differs, create a
+		// new child term and keep lineage via parent.
+		if uniqueLookup && strings.TrimSpace(foundName) != "" && strings.TrimSpace(foundName) != strings.TrimSpace(name) {
+			if institutionID == 0 && c.Institution != "" {
+				institutionID, err = d.ensureInstitution(c.Institution)
+				if err != nil {
+					return 0, err
+				}
+			}
+			childID, err := d.createTerm("person", name, c.Email, c.Orcid, institutionID)
+			if err != nil {
+				return 0, err
+			}
+			d.peopleCache[cacheKey] = childID
+			return childID, nil
+		}
 		d.peopleCache[cacheKey] = tid
 		return tid, nil
 	}
@@ -430,7 +449,7 @@ func (d *drupalTermResolver) ensureInstitution(name string) (int, error) {
 	params.Set("name", name)
 	params.Set("vocab", "corporate_body")
 
-	tid, found, err := d.lookupTerm(params)
+	tid, _, found, err := d.lookupTerm(params)
 	if err != nil {
 		return 0, err
 	}
@@ -447,10 +466,10 @@ func (d *drupalTermResolver) ensureInstitution(name string) (int, error) {
 	return tid, nil
 }
 
-func (d *drupalTermResolver) lookupTerm(params url.Values) (int, bool, error) {
+func (d *drupalTermResolver) lookupTerm(params url.Values) (int, string, bool, error) {
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/term_from_term_name?%s", d.baseURL, params.Encode()), nil)
 	if err != nil {
-		return 0, false, err
+		return 0, "", false, err
 	}
 	if d.password != "" {
 		req.SetBasicAuth(d.username, d.password)
@@ -459,22 +478,33 @@ func (d *drupalTermResolver) lookupTerm(params url.Values) (int, bool, error) {
 
 	resp, err := d.client.Do(req)
 	if err != nil {
-		return 0, false, err
+		return 0, "", false, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return 0, false, fmt.Errorf("term lookup failed with status %d", resp.StatusCode)
+		return 0, "", false, fmt.Errorf("term lookup failed with status %d", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return 0, false, err
+		return 0, "", false, err
 	}
-	tid, found, err := getTermIDFromBody(body)
+	term, found, err := getFirstTermFromBody(body)
 	if err != nil {
-		return 0, false, err
+		return 0, "", false, err
 	}
-	return tid, found, nil
+	if !found {
+		return 0, "", false, nil
+	}
+	tid, _, err := termIDFromResponse(term)
+	if err != nil {
+		return 0, "", false, err
+	}
+	foundName := ""
+	if len(term.Name) > 0 {
+		foundName = term.Name[0].Value
+	}
+	return tid, foundName, true, nil
 }
 
 func (d *drupalTermResolver) createTerm(vocab, name, email, orcid string, institutionID int) (int, error) {
@@ -497,7 +527,6 @@ func (d *drupalTermResolver) createTerm(vocab, name, email, orcid string, instit
 			"rel_type":  "schema:worksFor",
 		}}
 	}
-
 	payload, err := json.Marshal(body)
 	if err != nil {
 		return 0, err
@@ -540,26 +569,35 @@ type drupalTermResponse struct {
 	Tid []struct {
 		Value json.Number `json:"value"`
 	} `json:"tid"`
+	Name []struct {
+		Value string `json:"value"`
+	} `json:"name"`
 }
 
 func getTermIDFromBody(raw []byte) (int, bool, error) {
-	var terms []drupalTermResponse
-	if err := json.Unmarshal(raw, &terms); err == nil {
-		return termIDFromResponseSlice(terms)
-	}
-
-	var term drupalTermResponse
-	if err := json.Unmarshal(raw, &term); err != nil {
+	term, found, err := getFirstTermFromBody(raw)
+	if err != nil {
 		return 0, false, err
+	}
+	if !found {
+		return 0, false, nil
 	}
 	return termIDFromResponse(term)
 }
 
-func termIDFromResponseSlice(terms []drupalTermResponse) (int, bool, error) {
-	if len(terms) == 0 {
-		return 0, false, nil
+func getFirstTermFromBody(raw []byte) (drupalTermResponse, bool, error) {
+	var terms []drupalTermResponse
+	if err := json.Unmarshal(raw, &terms); err == nil {
+		if len(terms) == 0 {
+			return drupalTermResponse{}, false, nil
+		}
+		return terms[0], true, nil
 	}
-	return termIDFromResponse(terms[0])
+	var term drupalTermResponse
+	if err := json.Unmarshal(raw, &term); err != nil {
+		return drupalTermResponse{}, false, err
+	}
+	return term, true, nil
 }
 
 func termIDFromResponse(term drupalTermResponse) (int, bool, error) {

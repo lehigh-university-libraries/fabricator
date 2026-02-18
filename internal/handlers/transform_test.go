@@ -142,6 +142,9 @@ func TestResolveContributorEmailLookupPrecedence(t *testing.T) {
 		if q.Get("email") != "person@example.edu" {
 			t.Fatalf("expected email lookup, got query: %s", q.Encode())
 		}
+		if q.Get("name") != "Smith, Sam" {
+			t.Fatalf("expected name lookup when email is present, got query: %s", q.Encode())
+		}
 		if q.Get("orcid") != "" {
 			t.Fatalf("did not expect orcid lookup when email is present, got query: %s", q.Encode())
 		}
@@ -196,7 +199,7 @@ func TestResolveContributorNameInstitutionCreate(t *testing.T) {
 			default:
 				t.Fatalf("unexpected vocab in query: %s", q.Encode())
 			}
-		case "/entity/taxonomy_term":
+		case "/taxonomy/term":
 			if r.URL.RawQuery != "_format=json" {
 				t.Fatalf("unexpected taxonomy create query: %s", r.URL.RawQuery)
 			}
@@ -258,7 +261,7 @@ func TestResolvePersonTermID(t *testing.T) {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
 		q := r.URL.Query()
-		if q.Get("name") != "Basha, Sameen" || q.Get("vocab") != "person" || q.Get("email") != "person@example.edu" {
+		if q.Get("name") != "Smith, Sam" || q.Get("vocab") != "person" || q.Get("email") != "person@example.edu" {
 			t.Fatalf("unexpected query params: %s", q.Encode())
 		}
 		_, _ = w.Write([]byte(`[{"tid":[{"value":999}]}]`))
@@ -273,11 +276,62 @@ func TestResolvePersonTermID(t *testing.T) {
 		_ = os.Setenv("FABRICATOR_TERM_LOOKUP_URL", original)
 	}()
 
-	tid, err := ResolvePersonTermID("Basha, Sameen", "Lehigh University", "0000-0000-0000-0000", "person@example.edu")
+	tid, err := ResolvePersonTermID("Smith, Sam", "Lehigh University", "0000-0000-0000-0000", "person@example.edu")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if tid != 999 {
 		t.Fatalf("expected tid 999, got %d", tid)
+	}
+}
+
+func TestResolveContributorUniqueIDNameMismatchCreatesChild(t *testing.T) {
+	var sawCreate bool
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/term_from_term_name":
+			q := r.URL.Query()
+			if q.Get("vocab") != "person" || q.Get("email") != "person@example.edu" {
+				t.Fatalf("unexpected lookup query: %s", q.Encode())
+			}
+			_, _ = w.Write([]byte(`[{"tid":[{"value":321}],"name":[{"value":"Smith, Sam - Lehigh University"}]}]`))
+		case "/taxonomy/term":
+			var payload map[string]interface{}
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				t.Fatalf("failed decoding payload: %v", err)
+			}
+
+			if _, ok := payload["parent"]; ok {
+				t.Fatalf("did not expect parent payload, got %#v", payload["parent"])
+			}
+			sawCreate = true
+			_, _ = w.Write([]byte(`{"tid":[{"value":777}]}`))
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer ts.Close()
+
+	resolver := &drupalTermResolver{
+		baseURL:      ts.URL,
+		username:     "workbench",
+		password:     "secret",
+		client:       ts.Client(),
+		peopleCache:  map[string]int{},
+		institutions: map[string]int{},
+	}
+
+	got, err := resolver.resolveContributor(contributor.Contributor{
+		Name:  "relators:cre:person:Smith, Sam",
+		Email: "person@example.edu",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !sawCreate {
+		t.Fatal("expected create call for name mismatch on unique-id lookup")
+	}
+	if got != "relators:cre:person:777" {
+		t.Fatalf("unexpected resolved contributor: %s", got)
 	}
 }
