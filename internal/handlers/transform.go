@@ -2,12 +2,14 @@ package handlers
 
 import (
 	"archive/zip"
+	"bytes"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -21,7 +23,7 @@ import (
 )
 
 func TransformCsv(w http.ResponseWriter, r *http.Request) {
-	headers, rows, linkedAgents, err := readCSVWithJSONTags(r)
+	headers, rows, err := readCSVWithJSONTags(r)
 	if err != nil {
 		slog.Error("Failed to read CSV", "err", err)
 		http.Error(w, "Error parsing CSV", http.StatusBadRequest)
@@ -69,26 +71,6 @@ func TransformCsv(w http.ResponseWriter, r *http.Request) {
 	files := []string{
 		target,
 	}
-	if len(linkedAgents) > 1 {
-		csvFile := strings.Replace(target, ".csv", ".agents.csv", 1)
-		files = append(files, csvFile)
-		aFile, err := os.Create(csvFile)
-		if err != nil {
-			slog.Error("Failed to create file", "file", csvFile, "err", err)
-			os.Exit(1)
-		}
-
-		aWriter := csv.NewWriter(aFile)
-		for _, row := range linkedAgents {
-			if err := aWriter.Write(row); err != nil {
-				slog.Error("Failed to write record to CSV", "err", err)
-				http.Error(w, "Internal error", http.StatusInternalServerError)
-				return
-			}
-		}
-		aWriter.Flush()
-		aFile.Close()
-	}
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", "attachment; filename=files.zip")
 
@@ -129,26 +111,19 @@ func getJSONFieldName(tag string) string {
 	return tag
 }
 
-func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]string, [][]string, error) {
+func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]string, error) {
 	defer r.Body.Close()
 	re := regexp.MustCompile(`^\d{1,4}$`)
 	reader := csv.NewReader(r.Body)
 	headers, err := reader.Read()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	var rows []map[string][]string
 	newHeaders := map[string]bool{}
 
-	var linkedAgents [][]string
-	linkedAgents = append(linkedAgents, []string{
-		"term_name",
-		"field_contributor_status",
-		"field_relationships",
-		"field_email",
-		"field_identifier",
-	})
+	resolver := newDrupalTermResolver()
 	newCsv := &workbench.SheetsCsv{}
 	tgnCache := make(map[string]string)
 	for {
@@ -177,7 +152,7 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 				}
 				column := getJSONFieldName(field.Tag.Get("csv"))
 				if column == "" {
-					return nil, nil, nil, fmt.Errorf("unknown column: %s", jsonTag)
+					return nil, nil, fmt.Errorf("unknown column: %s", jsonTag)
 				}
 				originalColumn := column
 
@@ -188,33 +163,11 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 						var c contributor.Contributor
 						err := json.Unmarshal([]byte(str), &c)
 						if err != nil {
-							return nil, nil, nil, fmt.Errorf("error unmarshalling contributor: %s %v", str, err)
+							return nil, nil, fmt.Errorf("error unmarshalling contributor: %s %v", str, err)
 						}
-
-						str = c.Name
-						if c.Institution != "" {
-							str = fmt.Sprintf("%s - %s", str, c.Institution)
-						}
-						if c.Status != "" || c.Email != "" || c.Institution != "" || c.Orcid != "" {
-							name := strings.Split(str, ":")
-							if len(name) < 4 {
-								return nil, nil, nil, fmt.Errorf("poorly formatted contributor: %s %v", str, err)
-							}
-							agent := []string{
-								strings.Join(name[3:], ":"),
-								c.Status,
-								fmt.Sprintf("schema:worksFor:corporate_body:%s", c.Institution),
-								c.Email,
-								fmt.Sprintf(`{"attr0": "orcid", "value": "%s"}`, c.Orcid),
-							}
-							if c.Institution == "" {
-								agent[2] = ""
-							}
-							if c.Orcid == "" {
-								agent[4] = ""
-							}
-
-							linkedAgents = append(linkedAgents, agent)
+						str, err = resolver.resolveContributor(c)
+						if err != nil {
+							return nil, nil, fmt.Errorf("error resolving contributor: %s %v", str, err)
 						}
 
 					case "field_add_coverpage", "published":
@@ -224,16 +177,16 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 						case "No":
 							str = "0"
 						default:
-							return nil, nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+							return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
 						}
 					case "id", "parent_id":
 						if !re.MatchString(str) {
-							return nil, nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+							return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
 						}
 					case "field_weight", "node_id":
 						_, err := strconv.Atoi(str)
 						if err != nil {
-							return nil, nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+							return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
 						}
 						str = strings.TrimLeft(str, "0")
 					case "field_subject_hierarchical_geo":
@@ -244,12 +197,12 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 
 						tgn, err := tgn.GetLocationFromTGN(str)
 						if err != nil {
-							return nil, nil, nil, fmt.Errorf("unknown TGN: %s %v", str, err)
+							return nil, nil, fmt.Errorf("unknown TGN: %s %v", str, err)
 						}
 
 						locationJSON, err := json.Marshal(tgn)
 						if err != nil {
-							return nil, nil, nil, fmt.Errorf("error marshalling TGN: %s %v", str, err)
+							return nil, nil, fmt.Errorf("error marshalling TGN: %s %v", str, err)
 						}
 						tgnCache[str] = string(locationJSON)
 						str = tgnCache[str]
@@ -281,7 +234,7 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 						case "NO KNOWN COPYRIGHT":
 							str = "http://rightsstatements.org/vocab/NKC/1.0/"
 						default:
-							return nil, nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+							return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
 						}
 					case "field_extent.attr0=page",
 						"field_extent.attr0=dimensions",
@@ -349,5 +302,340 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 		rows = append(rows, row)
 	}
 
-	return newHeaders, rows, linkedAgents, nil
+	return newHeaders, rows, nil
+}
+
+type drupalTermResolver struct {
+	baseURL      string
+	username     string
+	password     string
+	client       *http.Client
+	peopleCache  map[string]int
+	institutions map[string]int
+}
+
+func newDrupalTermResolver() *drupalTermResolver {
+	baseURL := os.Getenv("FABRICATOR_TERM_LOOKUP_URL")
+	if baseURL == "" {
+		baseURL = "https://preserve.lehigh.edu"
+	}
+	username := os.Getenv("FABRICATOR_DRUPAL_USERNAME")
+	if username == "" {
+		username = "workbench"
+	}
+	password := os.Getenv("FABRICATOR_DRUPAL_PASSWORD")
+	if password == "" {
+		password = os.Getenv("ISLANDORA_WORKBENCH_PASSWORD")
+	}
+
+	return &drupalTermResolver{
+		baseURL:      strings.TrimRight(baseURL, "/"),
+		username:     username,
+		password:     password,
+		client:       http.DefaultClient,
+		peopleCache:  map[string]int{},
+		institutions: map[string]int{},
+	}
+}
+
+func (d *drupalTermResolver) resolveContributor(c contributor.Contributor) (string, error) {
+	parts := strings.Split(c.Name, ":")
+	if len(parts) < 4 {
+		return "", fmt.Errorf("poorly formatted contributor: %s", c.Name)
+	}
+
+	relator := strings.Join(parts[:2], ":")
+	vocab := parts[2]
+	name := strings.Join(parts[3:], ":")
+	var (
+		tid int
+		err error
+	)
+
+	switch vocab {
+	case "person":
+		tid, err = d.ensurePerson(c, name)
+	case "corporate_body":
+		tid, err = d.ensureInstitution(name)
+	default:
+		return c.Name, nil
+	}
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%s:%s:%d", relator, vocab, tid), nil
+}
+
+func (d *drupalTermResolver) ensurePerson(c contributor.Contributor, name string) (int, error) {
+	cacheKey := strings.ToLower(strings.TrimSpace(strings.Join([]string{
+		name,
+		c.Email,
+		c.Orcid,
+		c.Institution,
+	}, "|")))
+	if tid, ok := d.peopleCache[cacheKey]; ok {
+		return tid, nil
+	}
+
+	lookupParams := url.Values{}
+	lookupParams.Set("name", name)
+	lookupParams.Set("vocab", "person")
+
+	uniqueLookup := false
+	var institutionID int
+	if c.Email != "" {
+		lookupParams.Set("email", c.Email)
+		uniqueLookup = true
+	} else if c.Orcid != "" {
+		lookupParams.Set("orcid", c.Orcid)
+		uniqueLookup = true
+	} else if c.Institution != "" {
+		var err error
+		institutionID, err = d.ensureInstitution(c.Institution)
+		if err != nil {
+			return 0, err
+		}
+		lookupParams.Set("works_for", strconv.Itoa(institutionID))
+	}
+
+	tid, foundName, found, err := d.lookupTerm(lookupParams)
+	if err != nil {
+		return 0, err
+	}
+	if found {
+		// If we matched by a unique identifier but the stored name differs, create a
+		// new child term and keep lineage via parent.
+		if uniqueLookup && strings.TrimSpace(foundName) != "" && strings.TrimSpace(foundName) != strings.TrimSpace(name) {
+			if institutionID == 0 && c.Institution != "" {
+				institutionID, err = d.ensureInstitution(c.Institution)
+				if err != nil {
+					return 0, err
+				}
+			}
+			childID, err := d.createTerm("person", name, c.Email, c.Orcid, institutionID)
+			if err != nil {
+				return 0, err
+			}
+			d.peopleCache[cacheKey] = childID
+			return childID, nil
+		}
+		d.peopleCache[cacheKey] = tid
+		return tid, nil
+	}
+
+	if institutionID == 0 && c.Institution != "" {
+		institutionID, err = d.ensureInstitution(c.Institution)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	tid, err = d.createTerm("person", name, c.Email, c.Orcid, institutionID)
+	if err != nil {
+		return 0, err
+	}
+	d.peopleCache[cacheKey] = tid
+	return tid, nil
+}
+
+func (d *drupalTermResolver) ensureInstitution(name string) (int, error) {
+	cacheKey := strings.ToLower(strings.TrimSpace(name))
+	if tid, ok := d.institutions[cacheKey]; ok {
+		return tid, nil
+	}
+
+	params := url.Values{}
+	params.Set("name", name)
+	params.Set("vocab", "corporate_body")
+
+	tid, _, found, err := d.lookupTerm(params)
+	if err != nil {
+		return 0, err
+	}
+	if found {
+		d.institutions[cacheKey] = tid
+		return tid, nil
+	}
+
+	tid, err = d.createTerm("corporate_body", name, "", "", 0)
+	if err != nil {
+		return 0, err
+	}
+	d.institutions[cacheKey] = tid
+	return tid, nil
+}
+
+func (d *drupalTermResolver) lookupTerm(params url.Values) (int, string, bool, error) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/term_from_term_name?%s", d.baseURL, params.Encode()), nil)
+	if err != nil {
+		return 0, "", false, err
+	}
+	if d.password != "" {
+		req.SetBasicAuth(d.username, d.password)
+	}
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := d.client.Do(req)
+	if err != nil {
+		return 0, "", false, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return 0, "", false, fmt.Errorf("term lookup failed with status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, "", false, err
+	}
+	term, found, err := getFirstTermFromBody(body)
+	if err != nil {
+		return 0, "", false, err
+	}
+	if !found {
+		return 0, "", false, nil
+	}
+	tid, _, err := termIDFromResponse(term)
+	if err != nil {
+		return 0, "", false, err
+	}
+	foundName := ""
+	if len(term.Name) > 0 {
+		foundName = term.Name[0].Value
+	}
+	return tid, foundName, true, nil
+}
+
+func (d *drupalTermResolver) createTerm(vocab, name, email, orcid string, institutionID int) (int, error) {
+	if d.password == "" {
+		return 0, fmt.Errorf("unable to create term %q because FABRICATOR_DRUPAL_PASSWORD or ISLANDORA_WORKBENCH_PASSWORD is not set", name)
+	}
+	body := map[string]interface{}{
+		"vid":  []map[string]string{{"target_id": vocab}},
+		"name": []map[string]string{{"value": name}},
+	}
+	if email != "" {
+		body["field_email"] = []map[string]string{{"value": email}}
+	}
+	if orcid != "" {
+		body["field_identifier"] = []map[string]string{{"attr0": "orcid", "value": orcid}}
+	}
+	if institutionID > 0 {
+		body["field_relationships"] = []map[string]interface{}{{
+			"target_id": institutionID,
+			"rel_type":  "schema:worksFor",
+		}}
+	}
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return 0, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/taxonomy/term?_format=json", d.baseURL), bytes.NewReader(payload))
+	if err != nil {
+		return 0, err
+	}
+	req.SetBasicAuth(d.username, d.password)
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := d.client.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		raw, _ := io.ReadAll(resp.Body)
+		return 0, fmt.Errorf("term create failed with status %d: %s", resp.StatusCode, string(raw))
+	}
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+	tid, found, err := getTermIDFromBody(raw)
+	if err != nil {
+		return 0, err
+	}
+	if !found {
+		return 0, fmt.Errorf("term create response did not include a term id")
+	}
+	return tid, nil
+}
+
+type drupalTermResponse struct {
+	Tid []struct {
+		Value json.Number `json:"value"`
+	} `json:"tid"`
+	Name []struct {
+		Value string `json:"value"`
+	} `json:"name"`
+}
+
+func getTermIDFromBody(raw []byte) (int, bool, error) {
+	term, found, err := getFirstTermFromBody(raw)
+	if err != nil {
+		return 0, false, err
+	}
+	if !found {
+		return 0, false, nil
+	}
+	return termIDFromResponse(term)
+}
+
+func getFirstTermFromBody(raw []byte) (drupalTermResponse, bool, error) {
+	var terms []drupalTermResponse
+	if err := json.Unmarshal(raw, &terms); err == nil {
+		if len(terms) == 0 {
+			return drupalTermResponse{}, false, nil
+		}
+		return terms[0], true, nil
+	}
+	var term drupalTermResponse
+	if err := json.Unmarshal(raw, &term); err != nil {
+		return drupalTermResponse{}, false, err
+	}
+	return term, true, nil
+}
+
+func termIDFromResponse(term drupalTermResponse) (int, bool, error) {
+	if len(term.Tid) == 0 {
+		return 0, false, nil
+	}
+	id, err := term.Tid[0].Value.Int64()
+	if err != nil {
+		return 0, false, err
+	}
+	return int(id), true, nil
+}
+
+// ResolvePersonTermID resolves (or creates) a person term and returns its tid.
+func ResolvePersonTermID(name, institution, orcid, email string) (int, error) {
+	if strings.TrimSpace(name) == "" {
+		return 0, fmt.Errorf("name is required")
+	}
+
+	resolver := newDrupalTermResolver()
+	c := contributor.Contributor{
+		Name:        fmt.Sprintf("relators:aut:person:%s", strings.TrimSpace(name)),
+		Institution: strings.TrimSpace(institution),
+		Orcid:       strings.TrimSpace(orcid),
+		Email:       strings.TrimSpace(email),
+	}
+	resolved, err := resolver.resolveContributor(c)
+	if err != nil {
+		return 0, err
+	}
+
+	parts := strings.Split(resolved, ":")
+	if len(parts) < 4 {
+		return 0, fmt.Errorf("unexpected resolved contributor: %s", resolved)
+	}
+	tid, err := strconv.Atoi(parts[len(parts)-1])
+	if err != nil {
+		return 0, fmt.Errorf("unable to parse term id from resolved contributor %q: %w", resolved, err)
+	}
+	return tid, nil
 }
