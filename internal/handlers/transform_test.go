@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
@@ -248,5 +249,35 @@ func TestResolveContributorNameInstitutionCreate(t *testing.T) {
 	}
 	if got != "relators:cre:person:128900" {
 		t.Fatalf("unexpected resolved contributor: %s", got)
+	}
+}
+
+func TestResolvePersonTermID(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/term_from_term_name" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		q := r.URL.Query()
+		if q.Get("name") != "Basha, Sameen" || q.Get("vocab") != "person" || q.Get("email") != "person@example.edu" {
+			t.Fatalf("unexpected query params: %s", q.Encode())
+		}
+		_, _ = w.Write([]byte(`[{"tid":[{"value":999}]}]`))
+	}))
+	defer ts.Close()
+
+	original := os.Getenv("FABRICATOR_TERM_LOOKUP_URL")
+	if err := os.Setenv("FABRICATOR_TERM_LOOKUP_URL", ts.URL); err != nil {
+		t.Fatalf("failed setting env: %v", err)
+	}
+	defer func() {
+		_ = os.Setenv("FABRICATOR_TERM_LOOKUP_URL", original)
+	}()
+
+	tid, err := ResolvePersonTermID("Basha, Sameen", "Lehigh University", "0000-0000-0000-0000", "person@example.edu")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if tid != 999 {
+		t.Fatalf("expected tid 999, got %d", tid)
 	}
 }

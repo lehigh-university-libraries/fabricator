@@ -452,6 +452,9 @@ func (d *drupalTermResolver) lookupTerm(params url.Values) (int, bool, error) {
 	if err != nil {
 		return 0, false, err
 	}
+	if d.password != "" {
+		req.SetBasicAuth(d.username, d.password)
+	}
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := d.client.Do(req)
@@ -478,7 +481,6 @@ func (d *drupalTermResolver) createTerm(vocab, name, email, orcid string, instit
 	if d.password == "" {
 		return 0, fmt.Errorf("unable to create term %q because FABRICATOR_DRUPAL_PASSWORD or ISLANDORA_WORKBENCH_PASSWORD is not set", name)
 	}
-
 	body := map[string]interface{}{
 		"vid":  []map[string]string{{"target_id": vocab}},
 		"name": []map[string]string{{"value": name}},
@@ -501,11 +503,12 @@ func (d *drupalTermResolver) createTerm(vocab, name, email, orcid string, instit
 		return 0, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/entity/taxonomy_term?_format=json", d.baseURL), bytes.NewReader(payload))
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/taxonomy/term?_format=json", d.baseURL), bytes.NewReader(payload))
 	if err != nil {
 		return 0, err
 	}
 	req.SetBasicAuth(d.username, d.password)
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
@@ -568,4 +571,33 @@ func termIDFromResponse(term drupalTermResponse) (int, bool, error) {
 		return 0, false, err
 	}
 	return int(id), true, nil
+}
+
+// ResolvePersonTermID resolves (or creates) a person term and returns its tid.
+func ResolvePersonTermID(name, institution, orcid, email string) (int, error) {
+	if strings.TrimSpace(name) == "" {
+		return 0, fmt.Errorf("name is required")
+	}
+
+	resolver := newDrupalTermResolver()
+	c := contributor.Contributor{
+		Name:        fmt.Sprintf("relators:aut:person:%s", strings.TrimSpace(name)),
+		Institution: strings.TrimSpace(institution),
+		Orcid:       strings.TrimSpace(orcid),
+		Email:       strings.TrimSpace(email),
+	}
+	resolved, err := resolver.resolveContributor(c)
+	if err != nil {
+		return 0, err
+	}
+
+	parts := strings.Split(resolved, ":")
+	if len(parts) < 4 {
+		return 0, fmt.Errorf("unexpected resolved contributor: %s", resolved)
+	}
+	tid, err := strconv.Atoi(parts[len(parts)-1])
+	if err != nil {
+		return 0, fmt.Errorf("unable to parse term id from resolved contributor %q: %w", resolved, err)
+	}
+	return tid, nil
 }
