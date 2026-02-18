@@ -23,7 +23,7 @@ import (
 )
 
 func TransformCsv(w http.ResponseWriter, r *http.Request) {
-	headers, rows, _, err := readCSVWithJSONTags(r)
+	headers, rows, err := readCSVWithJSONTags(r)
 	if err != nil {
 		slog.Error("Failed to read CSV", "err", err)
 		http.Error(w, "Error parsing CSV", http.StatusBadRequest)
@@ -111,13 +111,13 @@ func getJSONFieldName(tag string) string {
 	return tag
 }
 
-func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]string, [][]string, error) {
+func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]string, error) {
 	defer r.Body.Close()
 	re := regexp.MustCompile(`^\d{1,4}$`)
 	reader := csv.NewReader(r.Body)
 	headers, err := reader.Read()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 
 	var rows []map[string][]string
@@ -152,7 +152,7 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 				}
 				column := getJSONFieldName(field.Tag.Get("csv"))
 				if column == "" {
-					return nil, nil, nil, fmt.Errorf("unknown column: %s", jsonTag)
+					return nil, nil, fmt.Errorf("unknown column: %s", jsonTag)
 				}
 				originalColumn := column
 
@@ -163,11 +163,11 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 						var c contributor.Contributor
 						err := json.Unmarshal([]byte(str), &c)
 						if err != nil {
-							return nil, nil, nil, fmt.Errorf("error unmarshalling contributor: %s %v", str, err)
+							return nil, nil, fmt.Errorf("error unmarshalling contributor: %s %v", str, err)
 						}
 						str, err = resolver.resolveContributor(c)
 						if err != nil {
-							return nil, nil, nil, fmt.Errorf("error resolving contributor: %s %v", str, err)
+							return nil, nil, fmt.Errorf("error resolving contributor: %s %v", str, err)
 						}
 
 					case "field_add_coverpage", "published":
@@ -177,16 +177,16 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 						case "No":
 							str = "0"
 						default:
-							return nil, nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+							return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
 						}
 					case "id", "parent_id":
 						if !re.MatchString(str) {
-							return nil, nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+							return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
 						}
 					case "field_weight", "node_id":
 						_, err := strconv.Atoi(str)
 						if err != nil {
-							return nil, nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+							return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
 						}
 						str = strings.TrimLeft(str, "0")
 					case "field_subject_hierarchical_geo":
@@ -197,12 +197,12 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 
 						tgn, err := tgn.GetLocationFromTGN(str)
 						if err != nil {
-							return nil, nil, nil, fmt.Errorf("unknown TGN: %s %v", str, err)
+							return nil, nil, fmt.Errorf("unknown TGN: %s %v", str, err)
 						}
 
 						locationJSON, err := json.Marshal(tgn)
 						if err != nil {
-							return nil, nil, nil, fmt.Errorf("error marshalling TGN: %s %v", str, err)
+							return nil, nil, fmt.Errorf("error marshalling TGN: %s %v", str, err)
 						}
 						tgnCache[str] = string(locationJSON)
 						str = tgnCache[str]
@@ -234,7 +234,7 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 						case "NO KNOWN COPYRIGHT":
 							str = "http://rightsstatements.org/vocab/NKC/1.0/"
 						default:
-							return nil, nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+							return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
 						}
 					case "field_extent.attr0=page",
 						"field_extent.attr0=dimensions",
@@ -302,7 +302,7 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 		rows = append(rows, row)
 	}
 
-	return newHeaders, rows, nil, nil
+	return newHeaders, rows, nil
 }
 
 type drupalTermResolver struct {

@@ -18,7 +18,6 @@ func TestReadCSVWithJSONTags(t *testing.T) {
 		csvContent      string
 		expectedHeaders []string
 		expectedRows    []map[string][]string
-		expectedAgents  [][]string
 		expectError     bool
 	}{
 		{
@@ -37,8 +36,7 @@ foo,bar,Full Test Title`,
 					"field_full_title": {"Full Test Title"},
 				},
 			},
-			expectedAgents: nil,
-			expectError:    false,
+			expectError: false,
 		},
 		{
 			name: "Valid update CSV with headers and rows",
@@ -54,8 +52,7 @@ Full Test Title,123`,
 					"node_id":          {"123"},
 				},
 			},
-			expectedAgents: nil,
-			expectError:    false,
+			expectError: false,
 		},
 	}
 
@@ -66,7 +63,7 @@ Full Test Title,123`,
 			req.Header.Set("Content-Type", "text/csv")
 
 			// Call function under test
-			headers, rows, _, err := readCSVWithJSONTags(req)
+			headers, rows, err := readCSVWithJSONTags(req)
 			firstRow := make([]string, 0, len(headers))
 			for header := range headers {
 				firstRow = append(firstRow, header)
