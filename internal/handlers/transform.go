@@ -30,6 +30,7 @@ func TransformCsv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	headers = normalizedWorkbenchHeaders(headers)
 	firstRow := make([]string, 0, len(headers))
 	for header := range headers {
 		firstRow = append(firstRow, header)
@@ -101,7 +102,31 @@ func TransformCsv(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func normalizedWorkbenchHeaders(headers map[string]bool) map[string]bool {
+	normalized := map[string]bool{}
+	for header, present := range headers {
+		if present {
+			normalized[header] = true
+		}
+	}
+
+	if !normalized["node_id"] {
+		return normalized
+	}
+
+	delete(normalized, "title")
+	delete(normalized, "field_model")
+	delete(normalized, "field_full_title")
+
+	if normalized["file"] && len(normalized) > 2 {
+		delete(normalized, "file")
+	}
+
+	return normalized
+}
+
 func targetCSVPath(headers map[string]bool) string {
+	headers = normalizedWorkbenchHeaders(headers)
 	if headers["node_id"] && headers["file"] {
 		return "/tmp/target.add_media.csv"
 	}
@@ -189,6 +214,12 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 							str = "0"
 						default:
 							return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+						}
+					case "field_restriction_value", "field_local_restriction":
+						if str == "Local Restriction" || str == "1" {
+							str = "1"
+						} else {
+							str = "0"
 						}
 					case "id", "parent_id":
 						if !re.MatchString(str) {

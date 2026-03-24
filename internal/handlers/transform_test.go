@@ -77,6 +77,40 @@ Full Test Title,123`,
 			},
 			expectError: false,
 		},
+		{
+			name: "Restriction value maps to boolean string",
+			csvContent: `Local Restriction,Title,Object Model,Full Title
+Local Restriction,foo,bar,Full Test Title
+1,bar,baz,Another Full Title
+Open,baz,qux,Third Full Title`,
+			expectedHeaders: []string{
+				"field_local_restriction",
+				"title",
+				"field_model",
+				"field_full_title",
+			},
+			expectedRows: []map[string][]string{
+				{
+					"field_local_restriction": {"1"},
+					"title":                   {"foo"},
+					"field_model":             {"bar"},
+					"field_full_title":        {"Full Test Title"},
+				},
+				{
+					"field_local_restriction": {"1"},
+					"title":                   {"bar"},
+					"field_model":             {"baz"},
+					"field_full_title":        {"Another Full Title"},
+				},
+				{
+					"field_local_restriction": {"0"},
+					"title":                   {"baz"},
+					"field_model":             {"qux"},
+					"field_full_title":        {"Third Full Title"},
+				},
+			},
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -145,6 +179,18 @@ func TestTargetCSVPath(t *testing.T) {
 			},
 			expected: "/tmp/target.add_media.csv",
 		},
+		{
+			name: "update ignores template columns and file path",
+			headers: map[string]bool{
+				"node_id":          true,
+				"file":             true,
+				"title":            true,
+				"field_model":      true,
+				"field_full_title": true,
+				"field_note":       true,
+			},
+			expected: "/tmp/target.update.csv",
+		},
 	}
 
 	for _, tt := range tests {
@@ -154,6 +200,52 @@ func TestTargetCSVPath(t *testing.T) {
 				t.Fatalf("expected %s, got %s", tt.expected, got)
 			}
 		})
+	}
+}
+
+func TestTransformCsvUpdateIgnoresTemplateFieldsAndFilePath(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString("Title,Object Model,Full Title,Node ID,File Path,Local Restriction\nfoo,Image,Full Test Title,123,test.pdf,Local Restriction\n"))
+	req.Header.Set("Content-Type", "text/csv")
+	rec := httptest.NewRecorder()
+
+	TransformCsv(rec, req)
+
+	res := rec.Result()
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", res.StatusCode)
+	}
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+	reader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	if err != nil {
+		t.Fatalf("failed to read zip: %v", err)
+	}
+	if len(reader.File) != 1 {
+		t.Fatalf("expected 1 file in zip, got %d", len(reader.File))
+	}
+	if reader.File[0].Name != "target.update.csv" {
+		t.Fatalf("expected target.update.csv, got %s", reader.File[0].Name)
+	}
+
+	file, err := reader.File[0].Open()
+	if err != nil {
+		t.Fatalf("failed to open zipped csv: %v", err)
+	}
+	defer file.Close()
+	csvBody, err := io.ReadAll(file)
+	if err != nil {
+		t.Fatalf("failed to read zipped csv: %v", err)
+	}
+	csvText := string(csvBody)
+	if strings.Contains(csvText, "title") || strings.Contains(csvText, "field_model") || strings.Contains(csvText, "field_full_title") || strings.Contains(csvText, "file") {
+		t.Fatalf("expected update csv to omit template fields and file path, got %s", csvText)
+	}
+	if !strings.Contains(csvText, "node_id") || !strings.Contains(csvText, "field_local_restriction") {
+		t.Fatalf("expected update csv to retain node_id and update fields, got %s", csvText)
 	}
 }
 
