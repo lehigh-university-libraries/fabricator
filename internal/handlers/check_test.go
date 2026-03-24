@@ -491,3 +491,49 @@ func TestCheckMyWork(t *testing.T) {
 		})
 	}
 }
+
+func TestWorkbenchMediaPath(t *testing.T) {
+	original := os.Getenv("FABRICATOR_DATA_MOUNT")
+	if err := os.Setenv("FABRICATOR_DATA_MOUNT", "/data"); err != nil {
+		t.Fatalf("failed setting env: %v", err)
+	}
+	defer func() {
+		_ = os.Setenv("FABRICATOR_DATA_MOUNT", original)
+	}()
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "home path unchanged",
+			input:    "/home/me/file.pdf",
+			expected: "/home/me/file.pdf",
+		},
+		{
+			name:     "relative path rooted under mount",
+			input:    "nested/file.pdf",
+			expected: "/data/nested/file.pdf",
+		},
+		{
+			name:     "staging path swapped to runtime mount",
+			input:    "/mnt/islandora_staging/nested/file.pdf",
+			expected: "/data/nested/file.pdf",
+		},
+		{
+			name:     "windows separators normalized",
+			input:    `nested\file.pdf`,
+			expected: "/data/nested/file.pdf",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := workbenchMediaPath(tt.input)
+			if got != tt.expected {
+				t.Fatalf("expected %s, got %s", tt.expected, got)
+			}
+		})
+	}
+}

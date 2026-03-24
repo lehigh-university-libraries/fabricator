@@ -286,15 +286,22 @@ var workbenchAllowedMediaExtensions = map[string]map[string]bool{
 	},
 }
 
+// workbenchMediaPath mirrors the path rewriting Workbench expects: home-directory
+// paths pass through, relative paths are rooted under islandora_staging, and the
+// runtime mount prefix is swapped in for local validation.
 func workbenchMediaPath(filename string) string {
 	filename = strings.ReplaceAll(filename, `\`, `/`)
 	if len(filename) > 7 && filename[0:6] == "/home/" {
 		return filename
 	}
-	if len(filename) > 3 && filename[0:3] != "mnt" {
-		filename = strings.TrimLeft(filename, "/")
-		filename = fmt.Sprintf("/mnt/islandora_staging/%s", filename)
+
+	trimmed := strings.TrimLeft(filename, "/")
+	if !strings.HasPrefix(trimmed, "mnt/") {
+		filename = fmt.Sprintf("/mnt/islandora_staging/%s", trimmed)
+	} else {
+		filename = "/" + trimmed
 	}
+
 	return strings.ReplaceAll(filename, "/mnt/islandora_staging", os.Getenv("FABRICATOR_DATA_MOUNT"))
 }
 

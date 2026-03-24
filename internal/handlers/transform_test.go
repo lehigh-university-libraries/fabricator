@@ -151,6 +151,67 @@ Open,baz,qux,Third Full Title`,
 	}
 }
 
+func TestNormalizedWorkbenchHeaders(t *testing.T) {
+	tests := []struct {
+		name     string
+		headers  map[string]bool
+		expected map[string]bool
+	}{
+		{
+			name: "create headers unchanged",
+			headers: map[string]bool{
+				"id":           true,
+				"parent_id":    true,
+				"field_weight": true,
+				"title":        true,
+			},
+			expected: map[string]bool{
+				"id":           true,
+				"parent_id":    true,
+				"field_weight": true,
+				"title":        true,
+			},
+		},
+		{
+			name: "node updates drop upload and parent ids but keep sort order",
+			headers: map[string]bool{
+				"node_id":      true,
+				"id":           true,
+				"parent_id":    true,
+				"field_weight": true,
+				"file":         true,
+				"field_note":   true,
+			},
+			expected: map[string]bool{
+				"node_id":      true,
+				"field_weight": true,
+				"field_note":   true,
+			},
+		},
+		{
+			name: "add_media keeps file path",
+			headers: map[string]bool{
+				"node_id": true,
+				"file":    true,
+				"id":      true,
+			},
+			expected: map[string]bool{
+				"node_id": true,
+				"file":    true,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := normalizedWorkbenchHeaders(tt.headers)
+			if !equalHeaderMaps(got, tt.expected) {
+				t.Fatalf("expected %#v, got %#v", tt.expected, got)
+			}
+		})
+	}
+}
+
 func TestTargetCSVPath(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -180,14 +241,14 @@ func TestTargetCSVPath(t *testing.T) {
 			expected: "/tmp/target.add_media.csv",
 		},
 		{
-			name: "update ignores template columns and file path",
+			name: "update ignores upload and parent ids plus file path",
 			headers: map[string]bool{
-				"node_id":          true,
-				"file":             true,
-				"title":            true,
-				"field_model":      true,
-				"field_full_title": true,
-				"field_note":       true,
+				"node_id":      true,
+				"file":         true,
+				"id":           true,
+				"parent_id":    true,
+				"field_weight": true,
+				"field_note":   true,
 			},
 			expected: "/tmp/target.update.csv",
 		},
@@ -204,7 +265,7 @@ func TestTargetCSVPath(t *testing.T) {
 }
 
 func TestTransformCsvUpdateIgnoresTemplateFieldsAndFilePath(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString("Title,Object Model,Full Title,Node ID,File Path,Local Restriction\nfoo,Image,Full Test Title,123,test.pdf,Local Restriction\n"))
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString("Upload ID,Page/Item Parent ID,Child Sort Order,Node ID,File Path,Local Restriction\n100,200,3,123,test.pdf,Local Restriction\n"))
 	req.Header.Set("Content-Type", "text/csv")
 	rec := httptest.NewRecorder()
 
@@ -241,11 +302,12 @@ func TestTransformCsvUpdateIgnoresTemplateFieldsAndFilePath(t *testing.T) {
 		t.Fatalf("failed to read zipped csv: %v", err)
 	}
 	csvText := string(csvBody)
-	if strings.Contains(csvText, "title") || strings.Contains(csvText, "field_model") || strings.Contains(csvText, "field_full_title") || strings.Contains(csvText, "file") {
-		t.Fatalf("expected update csv to omit template fields and file path, got %s", csvText)
+	headerLine := strings.Split(strings.TrimSpace(csvText), "\n")[0]
+	if strings.Contains(headerLine, ",id,") || strings.HasPrefix(headerLine, "id,") || strings.HasSuffix(headerLine, ",id") || strings.Contains(headerLine, "parent_id") || strings.Contains(headerLine, "file") {
+		t.Fatalf("expected update csv to omit upload id, parent id, and file path, got %s", csvText)
 	}
-	if !strings.Contains(csvText, "node_id") || !strings.Contains(csvText, "field_local_restriction") {
-		t.Fatalf("expected update csv to retain node_id and update fields, got %s", csvText)
+	if !strings.Contains(headerLine, "node_id") || !strings.Contains(headerLine, "field_local_restriction") || !strings.Contains(headerLine, "field_weight") {
+		t.Fatalf("expected update csv to retain node_id, sort order, and update fields, got %s", csvText)
 	}
 }
 
@@ -276,6 +338,18 @@ func TestTransformCsvAddMediaTargetName(t *testing.T) {
 	if reader.File[0].Name != "target.add_media.csv" {
 		t.Fatalf("expected target.add_media.csv, got %s", reader.File[0].Name)
 	}
+}
+
+func equalHeaderMaps(a, b map[string]bool) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if b[k] != v {
+			return false
+		}
+	}
+	return true
 }
 
 func equalRowSlices(a, b []map[string][]string) bool {

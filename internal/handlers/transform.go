@@ -102,6 +102,8 @@ func TransformCsv(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// normalizedWorkbenchHeaders strips update-irrelevant template columns from node-based
+// jobs and only keeps `file` when the effective payload is an add_media task.
 func normalizedWorkbenchHeaders(headers map[string]bool) map[string]bool {
 	normalized := map[string]bool{}
 	for header, present := range headers {
@@ -114,9 +116,11 @@ func normalizedWorkbenchHeaders(headers map[string]bool) map[string]bool {
 		return normalized
 	}
 
-	delete(normalized, "title")
-	delete(normalized, "field_model")
-	delete(normalized, "field_full_title")
+	// These are the transformed A-B template columns on update sheets:
+	// Upload ID and Page/Item Parent ID. Keep Child Sort Order so updates can
+	// still correct existing sort weights when that value is present.
+	delete(normalized, "id")
+	delete(normalized, "parent_id")
 
 	if normalized["file"] && len(normalized) > 2 {
 		delete(normalized, "file")
@@ -125,6 +129,8 @@ func normalizedWorkbenchHeaders(headers map[string]bool) map[string]bool {
 	return normalized
 }
 
+// targetCSVPath derives the Workbench task from the normalized header set so update
+// sheets with template columns do not get misclassified as create or add_media jobs.
 func targetCSVPath(headers map[string]bool) string {
 	headers = normalizedWorkbenchHeaders(headers)
 	if headers["node_id"] && headers["file"] {
