@@ -239,6 +239,10 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// if you update something in this list
+// also need to update
+// https://github.com/lehigh-university-libraries/islandora_workbench/blob/0acb90aadd774c0a58241b8ce6d350a6ef4e5984/WorkbenchConfig.py#L215
+// and the drupal media bundle's field allowed list
 var workbenchAllowedMediaExtensions = map[string]map[string]bool{
 	"image": {
 		"png":  true,
