@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -75,6 +77,40 @@ Full Test Title,123`,
 			},
 			expectError: false,
 		},
+		{
+			name: "Restriction value maps to boolean string",
+			csvContent: `Local Restriction,Title,Object Model,Full Title
+Local Restriction,foo,bar,Full Test Title
+1,bar,baz,Another Full Title
+Open,baz,qux,Third Full Title`,
+			expectedHeaders: []string{
+				"field_local_restriction",
+				"title",
+				"field_model",
+				"field_full_title",
+			},
+			expectedRows: []map[string][]string{
+				{
+					"field_local_restriction": {"1"},
+					"title":                   {"foo"},
+					"field_model":             {"bar"},
+					"field_full_title":        {"Full Test Title"},
+				},
+				{
+					"field_local_restriction": {"1"},
+					"title":                   {"bar"},
+					"field_model":             {"baz"},
+					"field_full_title":        {"Another Full Title"},
+				},
+				{
+					"field_local_restriction": {"0"},
+					"title":                   {"baz"},
+					"field_model":             {"qux"},
+					"field_full_title":        {"Third Full Title"},
+				},
+			},
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -113,6 +149,207 @@ Full Test Title,123`,
 			}
 		})
 	}
+}
+
+func TestNormalizedWorkbenchHeaders(t *testing.T) {
+	tests := []struct {
+		name     string
+		headers  map[string]bool
+		expected map[string]bool
+	}{
+		{
+			name: "create headers unchanged",
+			headers: map[string]bool{
+				"id":           true,
+				"parent_id":    true,
+				"field_weight": true,
+				"title":        true,
+			},
+			expected: map[string]bool{
+				"id":           true,
+				"parent_id":    true,
+				"field_weight": true,
+				"title":        true,
+			},
+		},
+		{
+			name: "node updates drop upload and parent ids but keep sort order",
+			headers: map[string]bool{
+				"node_id":      true,
+				"id":           true,
+				"parent_id":    true,
+				"field_weight": true,
+				"file":         true,
+				"field_note":   true,
+			},
+			expected: map[string]bool{
+				"node_id":      true,
+				"field_weight": true,
+				"field_note":   true,
+			},
+		},
+		{
+			name: "add_media keeps file path",
+			headers: map[string]bool{
+				"node_id": true,
+				"file":    true,
+				"id":      true,
+			},
+			expected: map[string]bool{
+				"node_id": true,
+				"file":    true,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := normalizedWorkbenchHeaders(tt.headers)
+			if !equalHeaderMaps(got, tt.expected) {
+				t.Fatalf("expected %#v, got %#v", tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestTargetCSVPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		headers  map[string]bool
+		expected string
+	}{
+		{
+			name: "create csv",
+			headers: map[string]bool{
+				"title": true,
+			},
+			expected: "/tmp/target.csv",
+		},
+		{
+			name: "update csv",
+			headers: map[string]bool{
+				"node_id": true,
+			},
+			expected: "/tmp/target.update.csv",
+		},
+		{
+			name: "add media csv",
+			headers: map[string]bool{
+				"node_id": true,
+				"file":    true,
+			},
+			expected: "/tmp/target.add_media.csv",
+		},
+		{
+			name: "update ignores upload and parent ids plus file path",
+			headers: map[string]bool{
+				"node_id":      true,
+				"file":         true,
+				"id":           true,
+				"parent_id":    true,
+				"field_weight": true,
+				"field_note":   true,
+			},
+			expected: "/tmp/target.update.csv",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := targetCSVPath(tt.headers)
+			if got != tt.expected {
+				t.Fatalf("expected %s, got %s", tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestTransformCsvUpdateIgnoresTemplateFieldsAndFilePath(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString("Upload ID,Page/Item Parent ID,Child Sort Order,Node ID,File Path,Local Restriction\n100,200,3,123,test.pdf,Local Restriction\n"))
+	req.Header.Set("Content-Type", "text/csv")
+	rec := httptest.NewRecorder()
+
+	TransformCsv(rec, req)
+
+	res := rec.Result()
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", res.StatusCode)
+	}
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+	reader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	if err != nil {
+		t.Fatalf("failed to read zip: %v", err)
+	}
+	if len(reader.File) != 1 {
+		t.Fatalf("expected 1 file in zip, got %d", len(reader.File))
+	}
+	if reader.File[0].Name != "target.update.csv" {
+		t.Fatalf("expected target.update.csv, got %s", reader.File[0].Name)
+	}
+
+	file, err := reader.File[0].Open()
+	if err != nil {
+		t.Fatalf("failed to open zipped csv: %v", err)
+	}
+	defer file.Close()
+	csvBody, err := io.ReadAll(file)
+	if err != nil {
+		t.Fatalf("failed to read zipped csv: %v", err)
+	}
+	csvText := string(csvBody)
+	headerLine := strings.Split(strings.TrimSpace(csvText), "\n")[0]
+	if strings.Contains(headerLine, ",id,") || strings.HasPrefix(headerLine, "id,") || strings.HasSuffix(headerLine, ",id") || strings.Contains(headerLine, "parent_id") || strings.Contains(headerLine, "file") {
+		t.Fatalf("expected update csv to omit upload id, parent id, and file path, got %s", csvText)
+	}
+	if !strings.Contains(headerLine, "node_id") || !strings.Contains(headerLine, "field_local_restriction") || !strings.Contains(headerLine, "field_weight") {
+		t.Fatalf("expected update csv to retain node_id, sort order, and update fields, got %s", csvText)
+	}
+}
+
+func TestTransformCsvAddMediaTargetName(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString("Node ID,File Path\n123,test.pdf\n"))
+	req.Header.Set("Content-Type", "text/csv")
+	rec := httptest.NewRecorder()
+
+	TransformCsv(rec, req)
+
+	res := rec.Result()
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", res.StatusCode)
+	}
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+	reader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	if err != nil {
+		t.Fatalf("failed to read zip: %v", err)
+	}
+	if len(reader.File) != 1 {
+		t.Fatalf("expected 1 file in zip, got %d", len(reader.File))
+	}
+	if reader.File[0].Name != "target.add_media.csv" {
+		t.Fatalf("expected target.add_media.csv, got %s", reader.File[0].Name)
+	}
+}
+
+func equalHeaderMaps(a, b map[string]bool) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if b[k] != v {
+			return false
+		}
+	}
+	return true
 }
 
 func equalRowSlices(a, b []map[string][]string) bool {

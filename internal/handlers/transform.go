@@ -30,14 +30,12 @@ func TransformCsv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	headers = normalizedWorkbenchHeaders(headers)
 	firstRow := make([]string, 0, len(headers))
 	for header := range headers {
 		firstRow = append(firstRow, header)
 	}
-	target := "/tmp/target.csv"
-	if strInSlice("node_id", firstRow) {
-		target = "/tmp/target.update.csv"
-	}
+	target := targetCSVPath(headers)
 	file, err := os.Create(target)
 	if err != nil {
 		slog.Error("Failed to create file", "err", err)
@@ -102,6 +100,46 @@ func TransformCsv(w http.ResponseWriter, r *http.Request) {
 		w.(http.Flusher).Flush()
 	}
 
+}
+
+// normalizedWorkbenchHeaders strips update-irrelevant template columns from node-based
+// jobs and only keeps `file` when the effective payload is an add_media task.
+func normalizedWorkbenchHeaders(headers map[string]bool) map[string]bool {
+	normalized := map[string]bool{}
+	for header, present := range headers {
+		if present {
+			normalized[header] = true
+		}
+	}
+
+	if !normalized["node_id"] {
+		return normalized
+	}
+
+	// These are the transformed A-B template columns on update sheets:
+	// Upload ID and Page/Item Parent ID. Keep Child Sort Order so updates can
+	// still correct existing sort weights when that value is present.
+	delete(normalized, "id")
+	delete(normalized, "parent_id")
+
+	if normalized["file"] && len(normalized) > 2 {
+		delete(normalized, "file")
+	}
+
+	return normalized
+}
+
+// targetCSVPath derives the Workbench task from the normalized header set so update
+// sheets with template columns do not get misclassified as create or add_media jobs.
+func targetCSVPath(headers map[string]bool) string {
+	headers = normalizedWorkbenchHeaders(headers)
+	if headers["node_id"] && headers["file"] {
+		return "/tmp/target.add_media.csv"
+	}
+	if headers["node_id"] {
+		return "/tmp/target.update.csv"
+	}
+	return "/tmp/target.csv"
 }
 
 func getJSONFieldName(tag string) string {
@@ -182,6 +220,12 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 							str = "0"
 						default:
 							return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
+						}
+					case "field_restriction_value", "field_local_restriction":
+						if str == "Local Restriction" || str == "1" {
+							str = "1"
+						} else {
+							str = "0"
 						}
 					case "id", "parent_id":
 						if !re.MatchString(str) {

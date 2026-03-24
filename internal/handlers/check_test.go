@@ -36,6 +36,10 @@ func TestCheckMyWork(t *testing.T) {
 		{"/tmp/test_readable.txt", 0644, true}, // Readable globally
 		{"/tmp/test_writable.txt", 0666, true}, // Writable globally
 		{"/tmp/test_private.txt", 0600, false}, // Not accessible globally
+		{"/tmp/audio.mp3", 0644, true},
+		{"/tmp/document.pdf", 0644, true},
+		{"/tmp/video.mp4", 0644, true},
+		{"/tmp/image.tif", 0644, true},
 	}
 
 	// Create test files
@@ -177,17 +181,87 @@ func TestCheckMyWork(t *testing.T) {
 			method: http.MethodPost,
 			body: [][]string{
 				{"Title", "Object Model", "Full Title", "File Path"},
-				{"foo", "Image", "foo", "test_readable.txt"},
+				{"foo", "Digital Document", "foo", "document.pdf"},
 			},
 			statusCode: http.StatusOK,
 			response:   `{}`,
+		},
+		{
+			name:   "Image rejects txt extension",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "Image", "foo", "test_readable.txt"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"File extension is not allowed for object model image"}`,
+		},
+		{
+			name:   "Audio accepts mp3 extension",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "Audio", "foo", "audio.mp3"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{}`,
+		},
+		{
+			name:   "Audio rejects pdf extension",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "Audio", "foo", "document.pdf"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"File extension is not allowed for object model audio"}`,
+		},
+		{
+			name:   "Digital Document accepts pdf extension",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "Digital Document", "foo", "document.pdf"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{}`,
+		},
+		{
+			name:   "Video accepts mp4 extension",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "Video", "foo", "video.mp4"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{}`,
+		},
+		{
+			name:   "Default model accepts tif extension",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "Paged Content", "foo", "image.tif"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{}`,
+		},
+		{
+			name:   "Default model rejects pdf extension",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "Paged Content", "foo", "document.pdf"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"File extension is not allowed for object model file"}`,
 		},
 		{
 			name:   "OK file (rw)",
 			method: http.MethodPost,
 			body: [][]string{
 				{"Title", "Object Model", "Full Title", "File Path"},
-				{"foo", "Image", "foo", "test_writable.txt"},
+				{"foo", "Digital Document", "foo", "document.pdf"},
 			},
 			statusCode: http.StatusOK,
 			response:   `{}`,
@@ -413,6 +487,52 @@ func TestCheckMyWork(t *testing.T) {
 			// Assert response body
 			if rec.Body.String() != tt.response {
 				t.Errorf("Expected response body: %q, got %q", tt.response, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestWorkbenchMediaPath(t *testing.T) {
+	original := os.Getenv("FABRICATOR_DATA_MOUNT")
+	if err := os.Setenv("FABRICATOR_DATA_MOUNT", "/data"); err != nil {
+		t.Fatalf("failed setting env: %v", err)
+	}
+	defer func() {
+		_ = os.Setenv("FABRICATOR_DATA_MOUNT", original)
+	}()
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "home path unchanged",
+			input:    "/home/me/file.pdf",
+			expected: "/home/me/file.pdf",
+		},
+		{
+			name:     "relative path rooted under mount",
+			input:    "nested/file.pdf",
+			expected: "/data/nested/file.pdf",
+		},
+		{
+			name:     "staging path swapped to runtime mount",
+			input:    "/mnt/islandora_staging/nested/file.pdf",
+			expected: "/data/nested/file.pdf",
+		},
+		{
+			name:     "windows separators normalized",
+			input:    `nested\file.pdf`,
+			expected: "/data/nested/file.pdf",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := workbenchMediaPath(tt.input)
+			if got != tt.expected {
+				t.Fatalf("expected %s, got %s", tt.expected, got)
 			}
 		})
 	}

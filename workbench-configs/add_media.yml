@@ -1,0 +1,6 @@
+task: add_media
+host: https://islandora-prod.lib.lehigh.edu
+username: workbench
+input_csv: target.add_media.csv
+log_file_path: logs/add_media.log
+log_file_mode: w

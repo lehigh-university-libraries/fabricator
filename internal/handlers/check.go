@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -189,18 +190,17 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 
 					// make sure the file exists in the filesystem
 				case "File Path", "Supplemental File":
-					filename := strings.ReplaceAll(cell, `\`, `/`)
-
-					if len(filename) > 7 && filename[0:6] == "/home/" {
-						break
-					} else if len(filename) > 3 && filename[0:3] != "mnt" {
-						filename = strings.TrimLeft(filename, "/")
-						filename = fmt.Sprintf("/mnt/islandora_staging/%s", filename)
-					}
-
-					filename = strings.ReplaceAll(filename, "/mnt/islandora_staging", os.Getenv("FABRICATOR_DATA_MOUNT"))
+					filename := workbenchMediaPath(cell)
 					if !fileExists(filename) {
 						errors[i] = "File does not exist in islandora_staging"
+						break
+					}
+
+					if column == "File Path" {
+						mediaType := workbenchMediaType(ColumnValue("Object Model", header, row))
+						if !isAllowedWorkbenchMediaExtension(filename, mediaType) {
+							errors[i] = fmt.Sprintf("File extension is not allowed for object model %s", mediaType)
+						}
 					}
 				case "Add Coverpage (Y/N)", "Make Public (Y/N)":
 					if cell != "Yes" && cell != "No" {
@@ -237,6 +237,99 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 		slog.Error("Error writing JSON response", "err", err)
 		http.Error(w, "Error writing JSON response", http.StatusInternalServerError)
 	}
+}
+
+var workbenchAllowedMediaExtensions = map[string]map[string]bool{
+	"image": {
+		"png":  true,
+		"gif":  true,
+		"jpg":  true,
+		"jpeg": true,
+	},
+	"document": {
+		"pdf":  true,
+		"doc":  true,
+		"docx": true,
+		"ppt":  true,
+		"pptx": true,
+	},
+	"file": {
+		"tif":  true,
+		"tiff": true,
+		"jp2":  true,
+		"zip":  true,
+		"tar":  true,
+	},
+	"audio": {
+		"mp3":  true,
+		"wav":  true,
+		"aac":  true,
+		"flac": true,
+	},
+	"video": {
+		"mp4":  true,
+		"mov":  true,
+		"wmv":  true,
+		"avi":  true,
+		"mts":  true,
+		"flv":  true,
+		"f4v":  true,
+		"swf":  true,
+		"mkv":  true,
+		"webm": true,
+		"ogv":  true,
+		"mpeg": true,
+		"m4v":  true,
+	},
+	"extracted_text": {
+		"txt": true,
+	},
+}
+
+// workbenchMediaPath mirrors the path rewriting Workbench expects: home-directory
+// paths pass through, relative paths are rooted under islandora_staging, and the
+// runtime mount prefix is swapped in for local validation.
+func workbenchMediaPath(filename string) string {
+	filename = strings.ReplaceAll(filename, `\`, `/`)
+	if len(filename) > 7 && filename[0:6] == "/home/" {
+		return filename
+	}
+
+	trimmed := strings.TrimLeft(filename, "/")
+	if !strings.HasPrefix(trimmed, "mnt/") {
+		filename = fmt.Sprintf("/mnt/islandora_staging/%s", trimmed)
+	} else {
+		filename = "/" + trimmed
+	}
+
+	return strings.ReplaceAll(filename, "/mnt/islandora_staging", os.Getenv("FABRICATOR_DATA_MOUNT"))
+}
+
+func workbenchMediaType(model string) string {
+	switch strings.TrimSpace(strings.ToLower(model)) {
+	case "audio":
+		return "audio"
+	case "digital document":
+		return "document"
+	case "video":
+		return "video"
+	case "image":
+		return "image"
+	default:
+		return "file"
+	}
+}
+
+func isAllowedWorkbenchMediaExtension(filename, mediaType string) bool {
+	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(filename)), ".")
+	if ext == "" {
+		return false
+	}
+	allowed, ok := workbenchAllowedMediaExtensions[mediaType]
+	if !ok {
+		allowed = workbenchAllowedMediaExtensions["file"]
+	}
+	return allowed[ext]
 }
 
 func strInSlice(s string, sl []string) bool {
