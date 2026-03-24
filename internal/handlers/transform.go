@@ -34,10 +34,7 @@ func TransformCsv(w http.ResponseWriter, r *http.Request) {
 	for header := range headers {
 		firstRow = append(firstRow, header)
 	}
-	target := "/tmp/target.csv"
-	if strInSlice("node_id", firstRow) {
-		target = "/tmp/target.update.csv"
-	}
+	target := targetCSVPath(headers)
 	file, err := os.Create(target)
 	if err != nil {
 		slog.Error("Failed to create file", "err", err)
@@ -102,6 +99,16 @@ func TransformCsv(w http.ResponseWriter, r *http.Request) {
 		w.(http.Flusher).Flush()
 	}
 
+}
+
+func targetCSVPath(headers map[string]bool) string {
+	if headers["node_id"] && headers["file"] {
+		return "/tmp/target.add_media.csv"
+	}
+	if headers["node_id"] {
+		return "/tmp/target.update.csv"
+	}
+	return "/tmp/target.csv"
 }
 
 func getJSONFieldName(tag string) string {

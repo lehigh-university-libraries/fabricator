@@ -54,7 +54,9 @@ rm target.zip
 # make sure source and target CSVs line count match
 SOURCE=$(wc -l < source.csv)
 TARGET_FILE="target.csv"
-if [ -f target.update.csv ]; then
+if [ -f target.add_media.csv ]; then
+  TARGET_FILE="target.add_media.csv"
+elif [ -f target.update.csv ]; then
   TARGET_FILE="target.update.csv"
 fi
 TARGET=$(wc -l < "$TARGET_FILE")
@@ -71,7 +73,9 @@ fi
 
 # ensure some required headers exist
 required_fields=("field_model" "title" "field_full_title" "id")
-if [ -f target.update.csv ]; then
+if [ -f target.add_media.csv ]; then
+  required_fields=("node_id" "file")
+elif [ -f target.update.csv ]; then
   required_fields=("node_id")
 fi
 header=$(head -1 "$TARGET_FILE")

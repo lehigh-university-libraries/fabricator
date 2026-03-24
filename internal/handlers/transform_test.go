@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -112,6 +114,75 @@ Full Test Title,123`,
 				t.Errorf("Expected rows %v, got %v", tt.expectedRows, rows)
 			}
 		})
+	}
+}
+
+func TestTargetCSVPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		headers  map[string]bool
+		expected string
+	}{
+		{
+			name: "create csv",
+			headers: map[string]bool{
+				"title": true,
+			},
+			expected: "/tmp/target.csv",
+		},
+		{
+			name: "update csv",
+			headers: map[string]bool{
+				"node_id": true,
+			},
+			expected: "/tmp/target.update.csv",
+		},
+		{
+			name: "add media csv",
+			headers: map[string]bool{
+				"node_id": true,
+				"file":    true,
+			},
+			expected: "/tmp/target.add_media.csv",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := targetCSVPath(tt.headers)
+			if got != tt.expected {
+				t.Fatalf("expected %s, got %s", tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestTransformCsvAddMediaTargetName(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString("Node ID,File Path\n123,test.pdf\n"))
+	req.Header.Set("Content-Type", "text/csv")
+	rec := httptest.NewRecorder()
+
+	TransformCsv(rec, req)
+
+	res := rec.Result()
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", res.StatusCode)
+	}
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+	reader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	if err != nil {
+		t.Fatalf("failed to read zip: %v", err)
+	}
+	if len(reader.File) != 1 {
+		t.Fatalf("expected 1 file in zip, got %d", len(reader.File))
+	}
+	if reader.File[0].Name != "target.add_media.csv" {
+		t.Fatalf("expected target.add_media.csv, got %s", reader.File[0].Name)
 	}
 }
 

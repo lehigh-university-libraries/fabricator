@@ -36,6 +36,10 @@ func TestCheckMyWork(t *testing.T) {
 		{"/tmp/test_readable.txt", 0644, true}, // Readable globally
 		{"/tmp/test_writable.txt", 0666, true}, // Writable globally
 		{"/tmp/test_private.txt", 0600, false}, // Not accessible globally
+		{"/tmp/audio.mp3", 0644, true},
+		{"/tmp/document.pdf", 0644, true},
+		{"/tmp/video.mp4", 0644, true},
+		{"/tmp/image.tif", 0644, true},
 	}
 
 	// Create test files
@@ -177,17 +181,87 @@ func TestCheckMyWork(t *testing.T) {
 			method: http.MethodPost,
 			body: [][]string{
 				{"Title", "Object Model", "Full Title", "File Path"},
-				{"foo", "Image", "foo", "test_readable.txt"},
+				{"foo", "Digital Document", "foo", "document.pdf"},
 			},
 			statusCode: http.StatusOK,
 			response:   `{}`,
+		},
+		{
+			name:   "Image rejects txt extension",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "Image", "foo", "test_readable.txt"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"File extension is not allowed for object model image"}`,
+		},
+		{
+			name:   "Audio accepts mp3 extension",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "Audio", "foo", "audio.mp3"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{}`,
+		},
+		{
+			name:   "Audio rejects pdf extension",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "Audio", "foo", "document.pdf"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"File extension is not allowed for object model audio"}`,
+		},
+		{
+			name:   "Digital Document accepts pdf extension",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "Digital Document", "foo", "document.pdf"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{}`,
+		},
+		{
+			name:   "Video accepts mp4 extension",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "Video", "foo", "video.mp4"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{}`,
+		},
+		{
+			name:   "Default model accepts tif extension",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "Paged Content", "foo", "image.tif"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{}`,
+		},
+		{
+			name:   "Default model rejects pdf extension",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "File Path"},
+				{"foo", "Paged Content", "foo", "document.pdf"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"File extension is not allowed for object model file"}`,
 		},
 		{
 			name:   "OK file (rw)",
 			method: http.MethodPost,
 			body: [][]string{
 				{"Title", "Object Model", "Full Title", "File Path"},
-				{"foo", "Image", "foo", "test_writable.txt"},
+				{"foo", "Digital Document", "foo", "document.pdf"},
 			},
 			statusCode: http.StatusOK,
 			response:   `{}`,

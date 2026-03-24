@@ -2,6 +2,11 @@
 
 set -eou pipefail
 
+if [ -f islandora_workbench/input_data/target.add_media.csv ]; then
+  echo "add_media task detected; skipping node ID insertion"
+  exit 0
+fi
+
 if [ ! -f islandora_workbench/input_data/rollback.csv ]; then
   echo "rollback.csv does not exist"
   exit 0
