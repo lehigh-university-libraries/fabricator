@@ -3,7 +3,7 @@
 set -eou pipefail
 
 GSHEET=$(cat gsheet.json)
-WORKBENCH_BASE_URL="${WORKBENCH_BASE_URL:-https://preserve.lehigh.edu}"
+WORKBENCH_BASE_URL="${WORKBENCH_BASE_URL:-https://islandora-test.lib.lehigh.edu}"
 
 if echo "$GSHEET" | jq -e .values >/dev/null; then
   NORMALIZED_VALUES=$(echo "$GSHEET" | jq -c '
