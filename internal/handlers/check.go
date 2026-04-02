@@ -70,6 +70,13 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 	uploadIds := map[string]bool{}
 	for rowIndex, row := range csvData[1:] {
 		for colIndex, col := range row {
+			if colIndex >= len(header) {
+				c := numberToExcelColumn(colIndex)
+				i := c + strconv.Itoa(rowIndex+2)
+				errors[i] = "Row has more columns than the header"
+				continue
+			}
+
 			column := header[colIndex]
 			c := numberToExcelColumn(colIndex)
 			i := c + strconv.Itoa(rowIndex+2)
@@ -446,7 +453,7 @@ func IndexOf(value string, slice []string) int {
 
 func ColumnValue(value string, header, row []string) string {
 	i := IndexOf(value, header)
-	if i == -1 {
+	if i == -1 || i >= len(row) {
 		return ""
 	}
 

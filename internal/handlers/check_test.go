@@ -451,6 +451,26 @@ func TestCheckMyWork(t *testing.T) {
 			statusCode: http.StatusOK,
 			response:   `{}`,
 		},
+		{
+			name:   "Row wider than header does not panic",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title"},
+				{"foo", "bar", "baz", "extra"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"Row has more columns than the header"}`,
+		},
+		{
+			name:   "Short row does not panic in ColumnValue",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Node ID"},
+				{"", "", ""},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"A2":"Missing value","B2":"Missing value","C2":"Missing value"}`,
+		},
 	}
 
 	sharedSecret := "foo"
