@@ -3,12 +3,26 @@
 set -eou pipefail
 
 GSHEET=$(cat gsheet.json)
+WORKBENCH_BASE_URL="${WORKBENCH_BASE_URL:-https://preserve.lehigh.edu}"
 
 if echo "$GSHEET" | jq -e .values >/dev/null; then
-  # save as a CSV
-  echo "$GSHEET" | jq .values | jq -r '(map(keys) | add | unique) as $cols | map(. as $row | $cols | map($row[.])) as $rows | $cols, $rows[] | [.[]|rtrimstr("\r")|ltrimstr("\r")|rtrimstr("\n")|ltrimstr("\n")|rtrimstr(" ")|ltrimstr(" ")] | @csv' | tail -n +2 > source.csv
-  # and also as JSON in a format check my work expects
-  echo "$GSHEET" | jq -r '.values | map(map(tostring))' > csv.json
+  NORMALIZED_VALUES=$(echo "$GSHEET" | jq -c '
+    .values as $rows
+    | ($rows | map(length) | max // 0) as $width
+    | $rows
+    | map(. + ([range(0; $width - length)] | map("")))
+    | map(map(
+        tostring
+        | rtrimstr("\r") | ltrimstr("\r")
+        | rtrimstr("\n") | ltrimstr("\n")
+        | rtrimstr(" ") | ltrimstr(" ")
+      ))
+  ')
+
+  # Keep the same padded rectangular grid for both check and transform so the
+  # CLI path matches the Apps Script path from Google Sheets.
+  printf '%s\n' "$NORMALIZED_VALUES" > csv.json
+  echo "$NORMALIZED_VALUES" | jq -r '.[] | @csv' > source.csv
 else
   echo "Failed to fetch data: $(echo "$GSHEET" | jq -r '.error.message')"
   exit 1
@@ -22,7 +36,7 @@ STATUS=$(curl -s \
   -o check.json \
   -XPOST \
   --upload-file csv.json \
-  https://islandora-test.lib.lehigh.edu/workbench/check)
+  "$WORKBENCH_BASE_URL/workbench/check")
 if [ "${STATUS}" != 200 ]; then
   echo "Check my work failed"
   exit 1
@@ -42,7 +56,7 @@ STATUS=$(curl -s \
   -XPOST \
   -o target.zip \
   --upload-file source.csv \
-  https://islandora-test.lib.lehigh.edu/workbench/transform)
+  "$WORKBENCH_BASE_URL/workbench/transform")
 if [ "${STATUS}" -gt 299 ] || [ "${STATUS}" -lt 200 ]; then
   echo "CSV transform failed"
   exit 1
