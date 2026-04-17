@@ -291,6 +291,7 @@ var workbenchAllowedMediaExtensions = map[string]map[string]bool{
 		"ogv":  true,
 		"mpeg": true,
 		"m4v":  true,
+		"dv":   true,
 	},
 	"extracted_text": {
 		"txt": true,
