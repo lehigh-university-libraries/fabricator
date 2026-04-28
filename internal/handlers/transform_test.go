@@ -111,6 +111,26 @@ Open,baz,qux,Third Full Title`,
 			},
 			expectError: false,
 		},
+		{
+			name: "Rights statement accepts title case",
+			csvContent: `Rights Statement,Title,Object Model,Full Title
+In Copyright,foo,bar,Full Test Title`,
+			expectedHeaders: []string{
+				"field_rights",
+				"title",
+				"field_model",
+				"field_full_title",
+			},
+			expectedRows: []map[string][]string{
+				{
+					"field_rights":     {"http://rightsstatements.org/vocab/InC/1.0/"},
+					"title":            {"foo"},
+					"field_model":      {"bar"},
+					"field_full_title": {"Full Test Title"},
+				},
+			},
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {

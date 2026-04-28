@@ -371,6 +371,26 @@ func TestCheckMyWork(t *testing.T) {
 			response:   `{"D2":"Invalid DOI"}`,
 		},
 		{
+			name:   "Valid Rights Statement",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Rights Statement"},
+				{"foo", "bar", "foo", "In Copyright"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{}`,
+		},
+		{
+			name:   "Invalid Rights Statement",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Rights Statement"},
+				{"foo", "bar", "foo", "Not A Real Rights Statement"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"Invalid Rights Statement"}`,
+		},
+		{
 			name:   "Unknown Parent ID",
 			method: http.MethodPost,
 			body: [][]string{

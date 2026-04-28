@@ -158,6 +158,10 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					if !doiPattern.MatchString(cell) {
 						errors[i] = "Invalid DOI"
 					}
+				case "Rights Statement":
+					if _, ok := rightsStatementURI(cell); !ok {
+						errors[i] = "Invalid Rights Statement"
+					}
 				// make sure the parent ID matches an upload ID in the spreadsheet
 				case "Page/Item Parent ID":
 					if _, ok := uploadIds[cell]; !ok {
