@@ -164,6 +164,7 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 	resolver := newDrupalTermResolver()
 	newCsv := &workbench.SheetsCsv{}
 	tgnCache := make(map[string]string)
+	tgnCoordsCache := make(map[string]string)
 	for {
 		record, err := reader.Read()
 		if err != nil {
@@ -199,6 +200,7 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 				originalColumn := column
 
 				values := []string{}
+				hierGeoCoords := []string{}
 				for _, str := range strings.Split(record[i], " ; ") {
 					switch originalColumn {
 					case "field_linked_agent":
@@ -238,52 +240,37 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 						}
 						str = strings.TrimLeft(str, "0")
 					case "field_subject_hierarchical_geo":
-						if _, ok := tgnCache[str]; ok {
-							str = tgnCache[str]
+						key := str
+						if cached, ok := tgnCache[key]; ok {
+							str = cached
+							if c := tgnCoordsCache[key]; c != "" {
+								hierGeoCoords = append(hierGeoCoords, c)
+							}
 							break
 						}
 
-						tgn, err := tgn.GetLocationFromTGN(str)
+						loc, err := tgn.GetLocationFromTGN(key)
 						if err != nil {
-							return nil, nil, fmt.Errorf("unknown TGN: %s %v", str, err)
+							return nil, nil, fmt.Errorf("unknown TGN: %s %v", key, err)
 						}
 
-						locationJSON, err := json.Marshal(tgn)
+						locationJSON, err := json.Marshal(loc)
 						if err != nil {
-							return nil, nil, fmt.Errorf("error marshalling TGN: %s %v", str, err)
+							return nil, nil, fmt.Errorf("error marshalling TGN: %s %v", key, err)
 						}
-						tgnCache[str] = string(locationJSON)
-						str = tgnCache[str]
+						tgnCache[key] = string(locationJSON)
+						tgnCoordsCache[key] = loc.Coordinates
+						str = tgnCache[key]
+						if loc.Coordinates != "" {
+							hierGeoCoords = append(hierGeoCoords, loc.Coordinates)
+						}
 
 					case "field_rights":
-						switch str {
-						case "IN COPYRIGHT":
-							str = "http://rightsstatements.org/vocab/InC/1.0/"
-						case "IN COPYRIGHT - EU ORPHAN WORK":
-							str = "http://rightsstatements.org/vocab/InC-OW-EU/1.0/"
-						case "IN COPYRIGHT - EDUCATIONAL USE PERMITTED":
-							str = "http://rightsstatements.org/vocab/InC-EDU/1.0/"
-						case "IN COPYRIGHT - NON-COMMERCIAL USE PERMITTED":
-							str = "http://rightsstatements.org/vocab/InC-NC/1.0/"
-						case "IN COPYRIGHT - RIGHTS-HOLDER(S) UNLOCATABLE OR UNIDENTIFIABLE":
-							str = "http://rightsstatements.org/vocab/InC-RUU/1.0/"
-						case "NO COPYRIGHT - CONTRACTUAL RESTRICTIONS":
-							str = "http://rightsstatements.org/vocab/NoC-CR/1.0/"
-						case "NO COPYRIGHT - NON-COMMERCIAL USE ONLY":
-							str = "http://rightsstatements.org/vocab/NoC-NC/1.0/"
-						case "NO COPYRIGHT - OTHER KNOWN LEGAL RESTRICTIONS":
-							str = "http://rightsstatements.org/vocab/NoC-OKLR/1.0/"
-						case "NO COPYRIGHT - UNITED STATES":
-							str = "http://rightsstatements.org/vocab/NoC-US/1.0/"
-						case "COPYRIGHT NOT EVALUATED":
-							str = "http://rightsstatements.org/vocab/CNE/1.0/"
-						case "COPYRIGHT UNDETERMINED":
-							str = "http://rightsstatements.org/vocab/UND/1.0/"
-						case "NO KNOWN COPYRIGHT":
-							str = "http://rightsstatements.org/vocab/NKC/1.0/"
-						default:
+						uri, ok := rightsStatementURI(str)
+						if !ok {
 							return nil, nil, fmt.Errorf("unknown %s: %s", jsonTag, str)
 						}
+						str = uri
 					case "field_extent.attr0=page",
 						"field_extent.attr0=dimensions",
 						"field_extent.attr0=bytes",
@@ -305,15 +292,18 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 						"field_identifier.attr0=call-number",
 						"field_identifier.attr0=report-number":
 						components := strings.Split(originalColumn, ".attr0=")
-						str = strings.ReplaceAll(str, `\`, `\\`)
-						str = strings.ReplaceAll(str, `"`, `\"`)
 						column = components[0]
+						var payload map[string]string
 						if column == "field_part_detail" {
-							str = fmt.Sprintf(`{"number":"%s","type":"%s"}`, str, components[1])
-
+							payload = map[string]string{"number": str, "type": components[1]}
 						} else {
-							str = fmt.Sprintf(`{"value":"%s","attr0":"%s"}`, str, components[1])
+							payload = map[string]string{"value": str, "attr0": components[1]}
 						}
+						encoded, err := json.Marshal(payload)
+						if err != nil {
+							return nil, nil, fmt.Errorf("error encoding %s: %s %v", originalColumn, str, err)
+						}
+						str = string(encoded)
 					case "field_geographic_subject.vid=geographic_naf",
 						"field_geographic_subject.vid=geographic_local":
 						components := strings.Split(originalColumn, ".vid=")
@@ -321,10 +311,18 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 						str = fmt.Sprintf("%s:%s", components[1], str)
 					case "field_related_item.title":
 						column = "field_related_item"
-						str = fmt.Sprintf(`{"title": "%s"}`, str)
+						encoded, err := json.Marshal(map[string]string{"title": str})
+						if err != nil {
+							return nil, nil, fmt.Errorf("error encoding field_related_item.title: %s %v", str, err)
+						}
+						str = string(encoded)
 					case "field_related_item.identifier_type=issn":
 						column = "field_related_item"
-						str = fmt.Sprintf(`{"type": "issn", "identifier": "%s"}`, str)
+						encoded, err := json.Marshal(map[string]string{"type": "issn", "identifier": str})
+						if err != nil {
+							return nil, nil, fmt.Errorf("error encoding field_related_item issn: %s %v", str, err)
+						}
+						str = string(encoded)
 					case "file", "supplemental_file":
 						str = strings.ReplaceAll(str, `\`, `/`)
 						if len(str) > 7 && str[0:6] == "/home/" {
@@ -344,6 +342,10 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 				// replace the locally defined google sheets cell delimiter
 				// with workbench's pipe delimiter
 				row[column] = append(row[column], strings.Join(values, "|"))
+				if len(hierGeoCoords) > 0 {
+					newHeaders["field_coordinates"] = true
+					row["field_coordinates"] = append(row["field_coordinates"], strings.Join(hierGeoCoords, "|"))
+				}
 			}
 		}
 
