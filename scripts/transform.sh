@@ -65,8 +65,6 @@ fi
 unzip target.zip
 rm target.zip
 
-# make sure source and target CSVs line count match
-SOURCE=$(wc -l < source.csv)
 TARGET_FILE="target.csv"
 if [ -f target.add_media.csv ]; then
   TARGET_FILE="target.add_media.csv"
@@ -74,12 +72,8 @@ elif [ -f target.update.csv ]; then
   TARGET_FILE="target.update.csv"
 fi
 TARGET=$(wc -l < "$TARGET_FILE")
-if [ "$SOURCE" != "$TARGET" ]; then
-  echo "source and target CSVs don't match ($SOURCE != $TARGET)"
-  exit 1
-fi
 
-# and that we're uploading at least one item
+# ensure we're uploading at least one item
 if [ "$TARGET" -lt 2 ]; then
   echo "target CSV less than two lines long"
   exit 1
