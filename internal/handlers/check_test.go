@@ -20,6 +20,14 @@ func TestCheckMyWork(t *testing.T) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
+		if r.URL.Path == "/node/403" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		if r.URL.Path == "/node/401" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "{}")
@@ -255,6 +263,56 @@ func TestCheckMyWork(t *testing.T) {
 			},
 			statusCode: http.StatusOK,
 			response:   `{"D2":"File extension is not allowed for object model file"}`,
+		},
+		{
+			name:   "Missing object model skips file extension validation",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Node ID", "File Path"},
+				{"2", "video.mp4"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{}`,
+		},
+		{
+			name:   "Forbidden node ID is treated as existing",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Node ID"},
+				{"403"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{}`,
+		},
+		{
+			name:   "Unauthorized node ID is treated as existing",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Node ID"},
+				{"401"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{}`,
+		},
+		{
+			name:   "Forbidden parent collection is treated as existing",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Parent Collection"},
+				{"foo", "bar", "foo", "403"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{}`,
+		},
+		{
+			name:   "Unauthorized parent collection is treated as existing",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Parent Collection"},
+				{"foo", "bar", "foo", "401"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{}`,
 		},
 		{
 			name:   "OK file (rw)",

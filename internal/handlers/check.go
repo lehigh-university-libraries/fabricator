@@ -208,9 +208,12 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					}
 
 					if column == "File Path" {
-						mediaType := workbenchMediaType(ColumnValue("Object Model", header, row))
-						if !isAllowedWorkbenchMediaExtension(filename, mediaType) {
-							errors[i] = fmt.Sprintf("File extension is not allowed for object model %s", mediaType)
+						model := strings.TrimSpace(ColumnValue("Object Model", header, row))
+						if model != "" {
+							mediaType := workbenchMediaType(model)
+							if !isAllowedWorkbenchMediaExtension(filename, mediaType) {
+								errors[i] = fmt.Sprintf("File extension is not allowed for object model %s", mediaType)
+							}
 						}
 					}
 				case "Add Coverpage (Y/N)", "Make Public (Y/N)":
@@ -481,7 +484,9 @@ func checkURL(url string, cache *sync.Map) bool {
 	}
 	defer resp.Body.Close()
 
-	result := resp.StatusCode == http.StatusOK
+	result := resp.StatusCode == http.StatusOK ||
+		resp.StatusCode == http.StatusForbidden ||
+		resp.StatusCode == http.StatusUnauthorized
 	cache.Store(url, result)
 	return result
 }
