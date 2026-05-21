@@ -13,3 +13,5 @@ clean_csv_values_skip:
   - inside_spaces
   - outside_spaces
   - outside_subdelimiters
+columns_with_term_names:
+ - field_date_season
