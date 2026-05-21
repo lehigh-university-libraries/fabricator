@@ -283,6 +283,7 @@ var workbenchAllowedMediaExtensions = map[string]map[string]bool{
 		"wav":  true,
 		"aac":  true,
 		"flac": true,
+		"m4a":  true,
 	},
 	"video": {
 		"mp4":  true,
