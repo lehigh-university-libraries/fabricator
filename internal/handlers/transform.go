@@ -387,7 +387,9 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 							break
 						}
 						str = strings.TrimLeft(str, "/")
-						if len(str) > 3 && str[0:3] != "mnt" {
+						if strings.HasPrefix(str, "mnt/") {
+							str = "/" + str
+						} else {
 							str = fmt.Sprintf("/mnt/islandora_staging/%s", str)
 						}
 					}
