@@ -25,7 +25,7 @@ if [ -f input_data/target.csv ]; then
 fi
 
 if [ -f input_data/target.unpublished_supplemental.csv ]; then
-  python3 ../scripts/resolve-unpublished-supplemental.py
+  ../fabricator --resolve-unpublished-supplemental
 fi
 
 if [ -f input_data/target.add_media.csv ]; then

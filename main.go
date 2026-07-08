@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/lehigh-university-libraries/fabricator/internal/handlers"
@@ -25,7 +26,17 @@ func main() {
 	checkCSV := flag.String("check-csv", "", "Path to CSV file to run through check (prints JSON result)")
 	transformCSV := flag.String("transform-csv", "", "Path to CSV file to run through transform (writes ZIP output)")
 	transformOut := flag.String("transform-out", "", "Output path for transform ZIP (default: <input>.zip)")
+	resolveUnpublishedSupplemental := flag.Bool("resolve-unpublished-supplemental", false, "Resolve pending unpublished supplemental media CSV into target.add_media.csv")
+	inputDir := flag.String("input-dir", "input_data", "Workbench input data directory")
 	flag.Parse()
+
+	if *resolveUnpublishedSupplemental {
+		if err := runResolveUnpublishedSupplemental(*inputDir); err != nil {
+			slog.Error("resolve-unpublished-supplemental failed", "err", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	if *checkCSV != "" || *transformCSV != "" {
 		if *checkCSV != "" {
@@ -150,4 +161,206 @@ func runTransformCSV(path, out string) error {
 		return fmt.Errorf("transform returned %d: %s", resp.StatusCode, string(raw))
 	}
 	return os.WriteFile(out, raw, 0644)
+}
+
+func runResolveUnpublishedSupplemental(inputDir string) error {
+	dir := filepath.Clean(inputDir)
+	pending := filepath.Join(dir, "target.unpublished_supplemental.csv")
+	if _, err := os.Stat(pending); os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	idToNodeID, err := createIDToNodeID(dir)
+	if err != nil {
+		return err
+	}
+
+	addMediaPath := filepath.Join(dir, "target.add_media.csv")
+	addMediaRows, err := existingAddMediaRows(addMediaPath)
+	if err != nil {
+		return err
+	}
+
+	pendingRows, err := readCSVMaps(pending)
+	if err != nil {
+		return err
+	}
+	for _, row := range pendingRows {
+		nodeID := strings.TrimSpace(row["node_id"])
+		if nodeID == "" {
+			nodeID = idToNodeID[strings.TrimSpace(row["id"])]
+		}
+		if nodeID == "" {
+			return fmt.Errorf("could not resolve node_id for unpublished supplemental file %s", row["file"])
+		}
+
+		mediaUseTID := strings.TrimSpace(row["media_use_tid"])
+		if mediaUseTID == "" {
+			mediaUseTID = "151326"
+		}
+		addMediaRows = append(addMediaRows, map[string]string{
+			"node_id":       nodeID,
+			"file":          strings.TrimSpace(row["file"]),
+			"media_use_tid": mediaUseTID,
+			"published":     "0",
+		})
+	}
+
+	if err := writeCSVMaps(addMediaPath, []string{"node_id", "file", "media_use_tid", "published"}, addMediaRows); err != nil {
+		return err
+	}
+
+	return os.Remove(pending)
+}
+
+func createIDToNodeID(inputDir string) (map[string]string, error) {
+	createPath := filepath.Join(inputDir, "target.csv")
+	if _, err := os.Stat(createPath); os.IsNotExist(err) {
+		return map[string]string{}, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	rollbackPath := filepath.Join(inputDir, "rollback.csv")
+	if _, err := os.Stat(rollbackPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("rollback.csv does not exist; cannot resolve unpublished supplemental media node IDs")
+	} else if err != nil {
+		return nil, err
+	}
+
+	createRows, err := readCSVMaps(createPath)
+	if err != nil {
+		return nil, err
+	}
+
+	nodeIDs, err := readRollbackNodeIDs(rollbackPath)
+	if err != nil {
+		return nil, err
+	}
+	if len(nodeIDs) < len(createRows) {
+		return nil, fmt.Errorf("rollback.csv has %d node IDs but target.csv has %d create rows", len(nodeIDs), len(createRows))
+	}
+
+	idToNodeID := map[string]string{}
+	for index, row := range createRows {
+		id := strings.TrimSpace(row["id"])
+		if id != "" {
+			idToNodeID[id] = nodeIDs[index]
+		}
+	}
+
+	return idToNodeID, nil
+}
+
+func existingAddMediaRows(path string) ([]map[string]string, error) {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return []map[string]string{}, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	rows, err := readCSVMaps(path)
+	if err != nil {
+		return nil, err
+	}
+
+	normalized := []map[string]string{}
+	for _, row := range rows {
+		normalized = append(normalized, map[string]string{
+			"node_id":       strings.TrimSpace(row["node_id"]),
+			"file":          strings.TrimSpace(row["file"]),
+			"media_use_tid": strings.TrimSpace(row["media_use_tid"]),
+			"published":     strings.TrimSpace(row["published"]),
+		})
+	}
+
+	return normalized, nil
+}
+
+func readCSVMaps(path string) ([]map[string]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	rows, err := reader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return []map[string]string{}, nil
+	}
+
+	headers := rows[0]
+	mapped := []map[string]string{}
+	for _, record := range rows[1:] {
+		row := map[string]string{}
+		for i, header := range headers {
+			if i < len(record) {
+				row[header] = record[i]
+			}
+		}
+		mapped = append(mapped, row)
+	}
+
+	return mapped, nil
+}
+
+func readRollbackNodeIDs(path string) ([]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	reader.Comment = '#'
+	reader.FieldsPerRecord = -1
+	rows, err := reader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	nodeIDs := []string{}
+	for _, row := range rows {
+		if len(row) == 0 {
+			continue
+		}
+		nodeID := strings.TrimSpace(row[0])
+		if _, err := strconv.Atoi(nodeID); err == nil {
+			nodeIDs = append(nodeIDs, nodeID)
+		}
+	}
+
+	return nodeIDs, nil
+}
+
+func writeCSVMaps(path string, headers []string, rows []map[string]string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	if err := writer.Write(headers); err != nil {
+		return err
+	}
+
+	for _, row := range rows {
+		record := make([]string, 0, len(headers))
+		for _, header := range headers {
+			record = append(record, row[header])
+		}
+		if err := writer.Write(record); err != nil {
+			return err
+		}
+	}
+	writer.Flush()
+
+	return writer.Error()
 }

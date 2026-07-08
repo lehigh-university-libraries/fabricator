@@ -1,6 +1,6 @@
 module github.com/lehigh-university-libraries/fabricator
 
-go 1.25.3
+go 1.26
 
 require (
 	github.com/lehigh-university-libraries/go-islandora v0.6.0
@@ -19,6 +19,6 @@ require (
 	github.com/lestrrat-go/option/v2 v2.0.0 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/valyala/fastjson v1.6.7 // indirect
-	golang.org/x/crypto v0.47.0 // indirect
-	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/crypto v0.53.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
 )
