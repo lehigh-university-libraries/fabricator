@@ -355,6 +355,16 @@ func TestCheckMyWork(t *testing.T) {
 			statusCode: http.StatusOK,
 			response:   `{"D2":"File does not exist in islandora_staging"}`,
 		},
+		{
+			name:   "Missing unpublished supplemental file",
+			method: http.MethodPost,
+			body: [][]string{
+				{"Title", "Object Model", "Full Title", "Unpublished Supplemental Files"},
+				{"foo", "bar", "foo", "/tmp/file/does/not/exist"},
+			},
+			statusCode: http.StatusOK,
+			response:   `{"D2":"File does not exist in islandora_staging"}`,
+		},
 
 		// Parent Collection and PPI
 		{

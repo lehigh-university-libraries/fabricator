@@ -36,38 +36,24 @@ func TransformCsv(w http.ResponseWriter, r *http.Request) {
 		firstRow = append(firstRow, header)
 	}
 	target := targetCSVPath(headers)
-	file, err := os.Create(target)
-	if err != nil {
-		slog.Error("Failed to create file", "err", err)
+	if err := writeCSV(target, firstRow, rows); err != nil {
+		slog.Error("Failed to write target CSV", "err", err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
-	writer := csv.NewWriter(file)
-
-	// finally, write the header to the CSV
-	if err := writer.Write(firstRow); err != nil {
-		slog.Error("Failed to write record to CSV", "err", err)
-		http.Error(w, "Internal error", http.StatusInternalServerError)
-		return
-	}
-
-	// write the rows to the CSV
-	for _, row := range rows {
-		record := []string{}
-		for _, header := range firstRow {
-			record = append(record, strings.Join(row[header], "|"))
-		}
-		if err := writer.Write(record); err != nil {
-			slog.Error("Failed to write record to CSV", "err", err)
-			http.Error(w, "Internal error", http.StatusInternalServerError)
-			return
-		}
-	}
-	writer.Flush()
-	file.Close()
 
 	files := []string{
 		target,
+	}
+	unpublishedRows := unpublishedSupplementalMediaRows(rows)
+	if len(unpublishedRows) > 0 {
+		unpublishedTarget := "/tmp/target.unpublished_supplemental.csv"
+		if err := writeCSV(unpublishedTarget, []string{"id", "node_id", "file", "media_use_tid", "published"}, unpublishedRows); err != nil {
+			slog.Error("Failed to write unpublished supplemental CSV", "err", err)
+			http.Error(w, "Internal error", http.StatusInternalServerError)
+			return
+		}
+		files = append(files, unpublishedTarget)
 	}
 	w.Header().Set("Content-Type", "application/zip")
 	w.Header().Set("Content-Disposition", "attachment; filename=files.zip")
@@ -102,6 +88,77 @@ func TransformCsv(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func writeCSV(path string, headers []string, rows []map[string][]string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	if err := writer.Write(headers); err != nil {
+		return err
+	}
+
+	for _, row := range rows {
+		record := []string{}
+		for _, header := range headers {
+			record = append(record, strings.Join(row[header], "|"))
+		}
+		if err := writer.Write(record); err != nil {
+			return err
+		}
+	}
+	writer.Flush()
+
+	return writer.Error()
+}
+
+func unpublishedSupplementalMediaRows(rows []map[string][]string) []map[string][]string {
+	mediaRows := []map[string][]string{}
+	for _, row := range rows {
+		files := splitWorkbenchValues(row["unpublished_supplemental_file"])
+		if len(files) == 0 {
+			continue
+		}
+
+		id := firstWorkbenchValue(row["id"])
+		nodeID := firstWorkbenchValue(row["node_id"])
+		for _, file := range files {
+			mediaRows = append(mediaRows, map[string][]string{
+				"id":            {id},
+				"node_id":       {nodeID},
+				"file":          {file},
+				"media_use_tid": {"151326"},
+				"published":     {"0"},
+			})
+		}
+	}
+
+	return mediaRows
+}
+
+func firstWorkbenchValue(values []string) string {
+	split := splitWorkbenchValues(values)
+	if len(split) == 0 {
+		return ""
+	}
+	return split[0]
+}
+
+func splitWorkbenchValues(values []string) []string {
+	split := []string{}
+	for _, value := range values {
+		for _, part := range strings.Split(value, "|") {
+			part = strings.TrimSpace(part)
+			if part != "" {
+				split = append(split, part)
+			}
+		}
+	}
+	return split
+}
+
 // normalizedWorkbenchHeaders strips update-irrelevant template columns from node-based
 // jobs and only keeps `file` when the effective payload is an add_media task.
 func normalizedWorkbenchHeaders(headers map[string]bool) map[string]bool {
@@ -112,13 +169,14 @@ func normalizedWorkbenchHeaders(headers map[string]bool) map[string]bool {
 		}
 	}
 
-	if !normalized["node_id"] {
-		return normalized
-	}
+	delete(normalized, "unpublished_supplemental_file")
 
 	// These are the transformed A-B template columns on update sheets:
 	// Upload ID and Page/Item Parent ID. Keep Child Sort Order so updates can
 	// still correct existing sort weights when that value is present.
+	if !normalized["node_id"] {
+		return normalized
+	}
 	delete(normalized, "id")
 	delete(normalized, "parent_id")
 
@@ -323,7 +381,7 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 							return nil, nil, fmt.Errorf("error encoding field_related_item issn: %s %v", str, err)
 						}
 						str = string(encoded)
-					case "file", "supplemental_file":
+					case "file", "supplemental_file", "unpublished_supplemental_file":
 						str = strings.ReplaceAll(str, `\`, `/`)
 						if len(str) > 7 && str[0:6] == "/home/" {
 							break
@@ -346,6 +404,7 @@ func readCSVWithJSONTags(r *http.Request) (map[string]bool, []map[string][]strin
 					newHeaders["field_coordinates"] = true
 					row["field_coordinates"] = append(row["field_coordinates"], strings.Join(hierGeoCoords, "|"))
 				}
+				break
 			}
 		}
 

@@ -2,7 +2,7 @@
 
 set -eou pipefail
 
-if [ -f islandora_workbench/input_data/target.add_media.csv ]; then
+if [ -f islandora_workbench/input_data/target.add_media.csv ] && [ ! -f islandora_workbench/input_data/target.csv ]; then
   echo "add_media task detected; skipping node ID insertion"
   exit 0
 fi

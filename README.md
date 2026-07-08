@@ -96,6 +96,8 @@ The `/workbench/transform` route transforms a Google Sheet CSV into a Workbench 
   - this is the most common pattern used at Lehigh. This creates metadata and media/files for new content being added to the repository
 - target.update.csv - used to run [a workbench updaye task](./workbench-configs/update.yml)
   - this is returned when the Google Sheet contains node IDs in the sheet, signifying the job should be updating metadata for existing nodes
+- target.unpublished_supplemental.csv - used internally when `Unpublished Supplemental Files` is present
+  - after the create task writes node IDs, this is resolved into `target.add_media.csv` and run with [the add_media task](./workbench-configs/add_media.yml) so those supplemental media are created unpublished
 
 ```
 $ curl -s \
