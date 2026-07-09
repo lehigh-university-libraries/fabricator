@@ -25,6 +25,10 @@ if [ -f input_data/target.csv ]; then
 fi
 
 if [ -f input_data/target.unpublished_supplemental.csv ]; then
+  if [ ! -x ../fabricator ]; then
+    echo "../fabricator CLI does not exist or is not executable"
+    exit 1
+  fi
   ../fabricator --resolve-unpublished-supplemental
 fi
 
