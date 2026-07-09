@@ -37,6 +37,122 @@ sequenceDiagram
     Self-hosted Runner->>Slack: ✅ Workbench job succeeded!
 ```
 
+## Workflow scenarios
+
+Fabricator chooses the Workbench task from the transformed CSV headers:
+
+- `target.csv` means a create task.
+- `target.update.csv` means a node metadata update task.
+- `target.add_media.csv` means an add-media task for existing nodes.
+- `target.unpublished_supplemental.csv` is an internal follow-up file. It is resolved into `target.add_media.csv` after node creation so unpublished supplemental media can be attached to newly created nodes.
+
+<details>
+<summary>Create task, with optional spin-offs</summary>
+
+This is the most common path. Rows without `Node ID` become new Islandora nodes. Regular files and regular supplemental files are handled by the create task. Unpublished supplemental files require a post-create add-media pass because their parent node IDs do not exist until Workbench finishes creating nodes.
+
+```mermaid
+flowchart TD
+    A[Google Sheet CSV] --> B[Fabricator check]
+    B --> C[Fabricator transform]
+    C --> D[target.csv]
+    C --> E{Unpublished Supplemental Files present?}
+    C --> F{Contributor values include extra metadata?}
+
+    F -->|yes| G[Resolve or create contributor terms]
+    G --> D
+    F -->|no| D
+
+    D --> H[Workbench create.yml]
+    H --> I[Create nodes]
+    H --> J[Attach File Path media]
+    H --> K[Attach Supplemental File media via additional_files]
+    H --> L[Write rollback.csv with created node IDs]
+
+    E -->|yes| M[target.unpublished_supplemental.csv]
+    L --> N[Fabricator resolve-unpublished-supplemental]
+    M --> N
+    N --> O[target.add_media.csv with published=0]
+    O --> P[Workbench add_media.yml]
+    P --> Q[Attach unpublished supplemental media]
+
+    E -->|no| R[No unpublished supplemental follow-up]
+```
+
+</details>
+
+<details>
+<summary>Node metadata update task</summary>
+
+Rows with `Node ID` and metadata fields become an update task. Template-only create columns such as `Upload ID`, `Page/Item Parent ID`, and `File Path` are dropped so the CSV is treated as metadata update input, not create or add-media input.
+
+```mermaid
+flowchart TD
+    A[Google Sheet CSV with Node ID] --> B[Fabricator check]
+    B --> C[Fabricator transform]
+    C --> D[Drop create-only columns]
+    D --> E[target.update.csv]
+    E --> F[Workbench update.yml]
+    F --> G[Update node metadata]
+```
+
+</details>
+
+<details>
+<summary>Add media task for existing nodes</summary>
+
+Rows with `Node ID` and `File Path`, without additional metadata fields, become an add-media task. If the same sheet also contains `Unpublished Supplemental Files`, Fabricator merges those rows into the add-media CSV and writes explicit published values so regular media remains published and unpublished supplemental media remains unpublished.
+
+```mermaid
+flowchart TD
+    A[Google Sheet CSV with Node ID and File Path] --> B[Fabricator check]
+    B --> C[Fabricator transform]
+    C --> D[target.add_media.csv]
+    C --> E{Unpublished Supplemental Files present?}
+
+    D --> F[Regular media rows]
+    F --> G[published=1 when merged]
+
+    E -->|yes| H[target.unpublished_supplemental.csv]
+    H --> I[Fabricator resolve-unpublished-supplemental]
+    G --> I
+    I --> J[target.add_media.csv]
+    J --> K[Workbench add_media.yml]
+    K --> L[Attach regular media as published]
+    K --> M[Attach unpublished supplemental media as published=0]
+
+    E -->|no| N[Workbench add_media.yml]
+    D --> N
+    N --> O[Attach regular media]
+```
+
+</details>
+
+<details>
+<summary>Contributor term resolution with extra metadata</summary>
+
+Contributor cells can include extra metadata such as email, ORCiD, institution, and status. Fabricator resolves those contributors before writing the Workbench CSV value. If a person term does not exist, Fabricator creates it. If a unique identifier matches an existing person with a different name, Fabricator creates a child term so lineage is preserved.
+
+```mermaid
+flowchart TD
+    A[Contributor cell JSON] --> B[Fabricator transform]
+    B --> C{Vocabulary is person?}
+    C -->|no| D[Pass through existing contributor value]
+    C -->|yes| E{Email or ORCiD present?}
+    E -->|yes| F[Lookup person by unique metadata]
+    E -->|no| G[Lookup person by name and institution]
+    F --> H{Matching term found?}
+    G --> H
+    H -->|yes, same name| I[Use existing term ID]
+    H -->|yes, different name with unique match| J[Create child person term]
+    H -->|no| K[Create person term]
+    I --> L[Write field_linked_agent value]
+    J --> L
+    K --> L
+```
+
+</details>
+
 ## Technical details
 
 This is an http service with two routes:
