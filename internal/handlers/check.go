@@ -200,7 +200,7 @@ func CheckMyWork(w http.ResponseWriter, r *http.Request) {
 					}
 
 					// make sure the file exists in the filesystem
-				case "File Path", "Supplemental File":
+				case "File Path", "Supplemental File", "Unpublished Supplemental Files":
 					filename := workbenchMediaPath(cell)
 					if !fileExists(filename) {
 						errors[i] = "File does not exist in islandora_staging"

@@ -78,6 +78,28 @@ Full Test Title,123`,
 			expectError: false,
 		},
 		{
+			name: "Unpublished supplemental files are transformed as media paths",
+			csvContent: `Upload ID,Title,Object Model,Full Title,Unpublished Supplemental Files
+10000,foo,bar,Full Test Title,supplemental/private.pdf ; /mnt/islandora_staging/private2.pdf`,
+			expectedHeaders: []string{
+				"id",
+				"title",
+				"field_model",
+				"field_full_title",
+				"unpublished_supplemental_file",
+			},
+			expectedRows: []map[string][]string{
+				{
+					"id":                            {"10000"},
+					"title":                         {"foo"},
+					"field_model":                   {"bar"},
+					"field_full_title":              {"Full Test Title"},
+					"unpublished_supplemental_file": {"/mnt/islandora_staging/supplemental/private.pdf|/mnt/islandora_staging/private2.pdf"},
+				},
+			},
+			expectError: false,
+		},
+		{
 			name: "Restriction value maps to boolean string",
 			csvContent: `Local Restriction,Title,Object Model,Full Title
 Local Restriction,foo,bar,Full Test Title
@@ -180,10 +202,11 @@ func TestNormalizedWorkbenchHeaders(t *testing.T) {
 		{
 			name: "create headers unchanged",
 			headers: map[string]bool{
-				"id":           true,
-				"parent_id":    true,
-				"field_weight": true,
-				"title":        true,
+				"id":                            true,
+				"parent_id":                     true,
+				"field_weight":                  true,
+				"title":                         true,
+				"unpublished_supplemental_file": true,
 			},
 			expected: map[string]bool{
 				"id":           true,
@@ -357,6 +380,75 @@ func TestTransformCsvAddMediaTargetName(t *testing.T) {
 	}
 	if reader.File[0].Name != "target.add_media.csv" {
 		t.Fatalf("expected target.add_media.csv, got %s", reader.File[0].Name)
+	}
+}
+
+func TestTransformCsvCreateWithUnpublishedSupplementalFiles(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString("Upload ID,Title,Object Model,Full Title,Supplemental File,Unpublished Supplemental Files\n100,Test,Digital Document,Full Test,public.pdf,private.pdf ; private2.pdf\n"))
+	req.Header.Set("Content-Type", "text/csv")
+	rec := httptest.NewRecorder()
+
+	TransformCsv(rec, req)
+
+	res := rec.Result()
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", res.StatusCode)
+	}
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+	reader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	if err != nil {
+		t.Fatalf("failed to read zip: %v", err)
+	}
+	if len(reader.File) != 2 {
+		t.Fatalf("expected 2 files in zip, got %d", len(reader.File))
+	}
+
+	files := map[string]string{}
+	for _, zipped := range reader.File {
+		file, err := zipped.Open()
+		if err != nil {
+			t.Fatalf("failed to open zipped csv: %v", err)
+		}
+		csvBody, err := io.ReadAll(file)
+		file.Close()
+		if err != nil {
+			t.Fatalf("failed to read zipped csv: %v", err)
+		}
+		files[zipped.Name] = string(csvBody)
+	}
+
+	target := files["target.csv"]
+	if target == "" {
+		t.Fatalf("expected target.csv in zip")
+	}
+	targetHeader := strings.Split(strings.TrimSpace(target), "\n")[0]
+	if strings.Contains(targetHeader, "unpublished_supplemental_file") {
+		t.Fatalf("expected target.csv to omit unpublished supplemental column, got %s", target)
+	}
+	if !strings.Contains(targetHeader, "supplemental_file") {
+		t.Fatalf("expected target.csv to retain regular supplemental column, got %s", target)
+	}
+	if !strings.Contains(target, "/mnt/islandora_staging/public.pdf") {
+		t.Fatalf("expected target.csv to retain regular supplemental file, got %s", target)
+	}
+
+	pending := files["target.unpublished_supplemental.csv"]
+	if pending == "" {
+		t.Fatalf("expected target.unpublished_supplemental.csv in zip")
+	}
+	for _, expected := range []string{
+		"id,node_id,file,media_use_tid,published",
+		"100,,/mnt/islandora_staging/private.pdf,151326,0",
+		"100,,/mnt/islandora_staging/private2.pdf,151326,0",
+	} {
+		if !strings.Contains(pending, expected) {
+			t.Fatalf("expected pending CSV to contain %q, got %s", expected, pending)
+		}
 	}
 }
 
