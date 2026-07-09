@@ -268,11 +268,15 @@ func existingAddMediaRows(path string) ([]map[string]string, error) {
 
 	normalized := []map[string]string{}
 	for _, row := range rows {
+		published := strings.TrimSpace(row["published"])
+		if published == "" {
+			published = "1"
+		}
 		normalized = append(normalized, map[string]string{
 			"node_id":       strings.TrimSpace(row["node_id"]),
 			"file":          strings.TrimSpace(row["file"]),
 			"media_use_tid": strings.TrimSpace(row["media_use_tid"]),
-			"published":     strings.TrimSpace(row["published"]),
+			"published":     published,
 		})
 	}
 
