@@ -384,7 +384,7 @@ func TestTransformCsvAddMediaTargetName(t *testing.T) {
 }
 
 func TestTransformCsvCreateWithUnpublishedSupplementalFiles(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString("Upload ID,Title,Object Model,Full Title,Unpublished Supplemental Files\n100,Test,Digital Document,Full Test,private.pdf ; private2.pdf\n"))
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString("Upload ID,Title,Object Model,Full Title,Supplemental File,Unpublished Supplemental Files\n100,Test,Digital Document,Full Test,public.pdf,private.pdf ; private2.pdf\n"))
 	req.Header.Set("Content-Type", "text/csv")
 	rec := httptest.NewRecorder()
 
@@ -429,6 +429,12 @@ func TestTransformCsvCreateWithUnpublishedSupplementalFiles(t *testing.T) {
 	targetHeader := strings.Split(strings.TrimSpace(target), "\n")[0]
 	if strings.Contains(targetHeader, "unpublished_supplemental_file") {
 		t.Fatalf("expected target.csv to omit unpublished supplemental column, got %s", target)
+	}
+	if !strings.Contains(targetHeader, "supplemental_file") {
+		t.Fatalf("expected target.csv to retain regular supplemental column, got %s", target)
+	}
+	if !strings.Contains(target, "/mnt/islandora_staging/public.pdf") {
+		t.Fatalf("expected target.csv to retain regular supplemental file, got %s", target)
 	}
 
 	pending := files["target.unpublished_supplemental.csv"]
