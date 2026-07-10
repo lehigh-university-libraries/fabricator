@@ -270,7 +270,7 @@ var workbenchAllowedMediaExtensions = map[string]map[string]bool{
 		"pdf":  true,
 		"ppt":  true,
 		"pptx": true,
-		"xls": true,
+		"xls":  true,
 		"xlsx": true,
 	},
 	"file": {
