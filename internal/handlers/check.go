@@ -286,7 +286,6 @@ var workbenchAllowedMediaExtensions = map[string]map[string]bool{
 		"mxd":     true,
 		"numbers": true,
 		"pages":   true,
-		"pdf":     true,
 		"prj":     true,
 		"psd":     true,
 		"py":      true,
