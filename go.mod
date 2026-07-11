@@ -3,7 +3,7 @@ module github.com/lehigh-university-libraries/fabricator
 go 1.26
 
 require (
-	github.com/lehigh-university-libraries/go-islandora v0.6.0
+	github.com/lehigh-university-libraries/go-islandora v0.6.1
 	github.com/lestrrat-go/jwx/v3 v3.1.1
 	github.com/sfomuseum/go-edtf v1.3.0
 )
