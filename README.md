@@ -225,6 +225,16 @@ $ curl -s \
 $ unzip target.zip
 ```
 
+## Adding a new MARC relator
+
+1. Update this repo's relator list in
+```
+google/appsscript/contributor-form.html
+internal/handlers/check.go
+```
+2. Update the Google Apps Script in [the metadata template spreadsheet](https://docs.google.com/spreadsheets/d/1iB7GsnfvhQO_c6TzJb7qwCnItqju0PMC8mNWepYqsnU/edit?gid=0#gid=0)
+3. Update "Available Relations" field at <https://preserve.lehigh.edu/admin/structure/types/manage/islandora_object/fields/node.islandora_object.field_linked_agent>
+
 ## Adding new columns to the ingest template
 
 If the ingest template needs a new column added, these are the code changes that are needed

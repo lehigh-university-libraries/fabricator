@@ -613,6 +613,7 @@ func validRelators() []string {
 		"relators:dfd",
 		"relators:dft",
 		"relators:dfe",
+		"relators:dgc",
 		"relators:dgg",
 		"relators:dgs",
 		"relators:dln",
