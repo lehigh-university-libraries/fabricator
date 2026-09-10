@@ -2,8 +2,8 @@ name: Ingest ProQuest ETDs
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '00 14 * * *'
+#  schedule:
+#    - cron: '00 14 * * *'
 jobs:
   run:
     timeout-minutes: 1440
