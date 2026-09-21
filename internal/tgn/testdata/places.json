@@ -1,0 +1,290 @@
+{
+  "/tgn/7013416.json": {
+    "id": "http://vocab.getty.edu/tgn/7013416",
+    "_label": "Bethlehem",
+    "classified_as": [
+      {
+        "id": "http://vocab.getty.edu/aat/300008347",
+        "_label": "inhabited places"
+      },
+      {
+        "id": "http://vocab.getty.edu/aat/300008389",
+        "_label": "cities"
+      },
+      {
+        "id": "http://vocab.getty.edu/aat/300264742",
+        "_label": "educational centers (buildings)"
+      },
+      {
+        "id": "http://vocab.getty.edu/aat/300387302",
+        "_label": "industrial centers (inhabited places)"
+      }
+    ],
+    "part_of": [
+      {
+        "id": "http://vocab.getty.edu/tgn/1002729",
+        "_label": "Northampton"
+      }
+    ],
+    "identified_by": [
+      {
+        "type": "crm:E47_Spatial_Coordinates",
+        "value": "[-75.35,40.6167]"
+      }
+    ]
+  },
+  "/tgn/1002729.json": {
+    "id": "http://vocab.getty.edu/tgn/1002729",
+    "_label": "Northampton",
+    "classified_as": [
+      {
+        "id": "http://vocab.getty.edu/aat/300387145",
+        "_label": "second level subdivisions (political entities)"
+      },
+      {
+        "id": "http://vocab.getty.edu/aat/300000771",
+        "_label": "counties"
+      }
+    ],
+    "part_of": [
+      {
+        "id": "http://vocab.getty.edu/tgn/7007710",
+        "_label": "Pennsylvania"
+      }
+    ],
+    "identified_by": [
+      {
+        "type": "crm:E47_Spatial_Coordinates",
+        "value": "[-75.25,40.8667]"
+      }
+    ]
+  },
+  "/tgn/7007710.json": {
+    "id": "http://vocab.getty.edu/tgn/7007710",
+    "_label": "Pennsylvania",
+    "classified_as": [
+      {
+        "id": "http://vocab.getty.edu/aat/300387064",
+        "_label": "first level subdivisions (political entities)"
+      },
+      {
+        "id": "http://vocab.getty.edu/aat/300000776",
+        "_label": "states (political divisions)"
+      }
+    ],
+    "part_of": [
+      {
+        "id": "http://vocab.getty.edu/tgn/7012149",
+        "_label": "United States"
+      }
+    ],
+    "identified_by": [
+      {
+        "type": "crm:E47_Spatial_Coordinates",
+        "value": "[-0.6,40.8333]"
+      }
+    ]
+  },
+  "/tgn/7012149.json": {
+    "id": "http://vocab.getty.edu/tgn/7012149",
+    "_label": "United States",
+    "classified_as": [
+      {
+        "id": "http://vocab.getty.edu/aat/300387054",
+        "_label": "primary political entities"
+      },
+      {
+        "id": "http://vocab.getty.edu/aat/300128207",
+        "_label": "nations"
+      },
+      {
+        "id": "http://vocab.getty.edu/aat/300387053",
+        "_label": "independent political entities"
+      },
+      {
+        "id": "http://vocab.getty.edu/aat/300387174",
+        "_label": "independent sovereign nations"
+      }
+    ],
+    "part_of": [
+      {
+        "id": "http://vocab.getty.edu/tgn/1000001",
+        "_label": "North and Central America"
+      },
+      {
+        "id": "http://vocab.getty.edu/tgn/8725217",
+        "_label": "North American Free Trade Agreement"
+      }
+    ],
+    "identified_by": [
+      {
+        "type": "crm:E47_Spatial_Coordinates",
+        "value": "[-0.8,38]"
+      }
+    ]
+  },
+  "/tgn/1000001.json": {
+    "id": "http://vocab.getty.edu/tgn/1000001",
+    "_label": "North and Central America",
+    "classified_as": [
+      {
+        "id": "http://vocab.getty.edu/aat/300128176",
+        "_label": "continents"
+      }
+    ],
+    "part_of": [
+      {
+        "id": "http://vocab.getty.edu/tgn/7029392",
+        "_label": "World"
+      }
+    ],
+    "identified_by": [
+      {
+        "type": "crm:E47_Spatial_Coordinates",
+        "value": "[-101.123047,42.284495]"
+      }
+    ]
+  },
+  "/tgn/7029392.json": {
+    "id": "http://vocab.getty.edu/tgn/7029392",
+    "_label": "World",
+    "classified_as": [
+      {
+        "id": "http://vocab.getty.edu/aat/300387575",
+        "_label": "areas (geography)"
+      },
+      {
+        "id": "http://vocab.getty.edu/aat/300386699",
+        "_label": "facets (controlled vocabulary)"
+      }
+    ]
+  },
+  "/tgn/2087483.json": {
+    "id": "http://vocab.getty.edu/tgn/2087483",
+    "_label": "Coplay",
+    "classified_as": [
+      {
+        "id": "http://vocab.getty.edu/aat/300008347",
+        "_label": "inhabited places"
+      }
+    ],
+    "part_of": [
+      {
+        "id": "http://vocab.getty.edu/tgn/1002586",
+        "_label": "Lehigh"
+      }
+    ],
+    "identified_by": [
+      {
+        "type": "crm:E47_Spatial_Coordinates",
+        "value": "[-75.4833,40.6667]"
+      }
+    ]
+  },
+  "/tgn/1002586.json": {
+    "id": "http://vocab.getty.edu/tgn/1002586",
+    "_label": "Lehigh",
+    "classified_as": [
+      {
+        "id": "http://vocab.getty.edu/aat/300387145",
+        "_label": "second level subdivisions (political entities)"
+      },
+      {
+        "id": "http://vocab.getty.edu/aat/300000771",
+        "_label": "counties"
+      }
+    ],
+    "part_of": [
+      {
+        "id": "http://vocab.getty.edu/tgn/7007710",
+        "_label": "Pennsylvania"
+      }
+    ],
+    "identified_by": [
+      {
+        "type": "crm:E47_Spatial_Coordinates",
+        "value": "[-75.6167,40.75]"
+      }
+    ]
+  },
+  "/tgn/7003514.json": {
+    "id": "http://vocab.getty.edu/tgn/7003514",
+    "_label": "Luxembourg",
+    "classified_as": [
+      {
+        "id": "http://vocab.getty.edu/aat/300387054",
+        "_label": "primary political entities"
+      },
+      {
+        "id": "http://vocab.getty.edu/aat/300128207",
+        "_label": "nations"
+      },
+      {
+        "id": "http://vocab.getty.edu/aat/300387053",
+        "_label": "independent political entities"
+      },
+      {
+        "id": "http://vocab.getty.edu/aat/300387174",
+        "_label": "independent sovereign nations"
+      },
+      {
+        "id": "http://vocab.getty.edu/aat/300387189",
+        "_label": "constitutional monarchies"
+      },
+      {
+        "id": "http://vocab.getty.edu/aat/300235540",
+        "_label": "countships"
+      }
+    ],
+    "part_of": [
+      {
+        "id": "http://vocab.getty.edu/tgn/1000003",
+        "_label": "Europe"
+      },
+      {
+        "id": "http://vocab.getty.edu/tgn/8060269",
+        "_label": "Benelux Economic Union"
+      },
+      {
+        "id": "http://vocab.getty.edu/tgn/8729510",
+        "_label": "European Economic Area"
+      },
+      {
+        "id": "http://vocab.getty.edu/tgn/7030305",
+        "_label": "European Union"
+      },
+      {
+        "id": "http://vocab.getty.edu/tgn/7029439",
+        "_label": "Low Countries"
+      }
+    ],
+    "identified_by": [
+      {
+        "type": "crm:E47_Spatial_Coordinates",
+        "value": "[6.1667,49.75]"
+      }
+    ]
+  },
+  "/tgn/1000003.json": {
+    "id": "http://vocab.getty.edu/tgn/1000003",
+    "_label": "Europe",
+    "classified_as": [
+      {
+        "id": "http://vocab.getty.edu/aat/300128176",
+        "_label": "continents"
+      }
+    ],
+    "part_of": [
+      {
+        "id": "http://vocab.getty.edu/tgn/7029392",
+        "_label": "World"
+      }
+    ],
+    "identified_by": [
+      {
+        "type": "crm:E47_Spatial_Coordinates",
+        "value": "[15.016,56.2]"
+      }
+    ]
+  }
+}

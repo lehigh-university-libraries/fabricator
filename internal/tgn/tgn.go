@@ -21,8 +21,11 @@ type Location struct {
 
 // Place represents the TGN data
 type Place struct {
-	ID     string `json:"id"`
-	Label  string `json:"_label"`
+	ID           string `json:"id"`
+	Label        string `json:"_label"`
+	ClassifiedAs []struct {
+		ID string `json:"id"`
+	} `json:"classified_as"`
 	PartOf []struct {
 		ID    string `json:"id"`
 		Label string `json:"_label"`
@@ -110,7 +113,7 @@ func GetLocationFromTGN(uri string) (*Location, error) {
 	}
 
 	// Recursively process the hierarchy
-	err = resolveHierarchy(place, location, 0)
+	err = resolveHierarchy(place, location)
 	if err != nil {
 		return nil, err
 	}
@@ -119,33 +122,34 @@ func GetLocationFromTGN(uri string) (*Location, error) {
 }
 
 // resolveHierarchy recursively resolves the hierarchy from the place data.
-func resolveHierarchy(place Place, location *Location, depth int) error {
-	// If this place has no parent, it must be the city
-	if len(place.PartOf) == 0 {
-		location.Country = place.Label
-		return nil
+func resolveHierarchy(place Place, location *Location) error {
+	if len(place.PartOf) > 0 {
+		parentPlace, err := fetchPlaceData(place.PartOf[0].ID + ".json")
+		if err != nil {
+			return err
+		}
+		if err := resolveHierarchy(parentPlace, location); err != nil {
+			return err
+		}
 	}
 
-	// Recursively resolve the parent hierarchy
-	parentPlace, err := fetchPlaceData(place.PartOf[0].ID + ".json")
-	if err != nil {
-		return err
-	}
-	err = resolveHierarchy(parentPlace, location, depth+1)
-	if err != nil {
-		return err
-	}
-
-	// Assign the correct label based on depth
-	switch depth {
-	case 0:
-		location.City = place.Label
-	case 1:
-		location.County = place.Label
-	case 2:
-		location.State = place.Label
-	case 3:
-		location.Country = place.Label
+	// AAT place types identify administrative levels regardless of hierarchy depth.
+	// Unmapped types (including continents and World) do not fill these fields.
+	for _, classification := range place.ClassifiedAs {
+		switch strings.Replace(classification.ID, "https://", "http://", 1) {
+		case "http://vocab.getty.edu/aat/300128207": // nations
+			location.Country = place.Label
+		case "http://vocab.getty.edu/aat/300387064", // first level subdivisions
+			"http://vocab.getty.edu/aat/300000776", // states
+			"http://vocab.getty.edu/aat/300000774": // provinces
+			location.State = place.Label
+		case "http://vocab.getty.edu/aat/300387145", // second level subdivisions
+			"http://vocab.getty.edu/aat/300000771": // counties
+			location.County = place.Label
+		case "http://vocab.getty.edu/aat/300008347", // inhabited places
+			"http://vocab.getty.edu/aat/300008389": // cities
+			location.City = place.Label
+		}
 	}
 
 	return nil
